@@ -26,8 +26,11 @@ public class ModelMapper {
   }
 
   private PApplet parent;
+
+  private PGraphics3D parentGraphics;
   private PGraphics3D modelCanvas;
   private PGraphics3D projectionCanvas;
+
   private PShape model;
   private Mode mode;
   private CalibrationSpace space;
@@ -39,6 +42,12 @@ public class ModelMapper {
 
   public ModelMapper(PApplet parent, PShape model) {
     this.parent = parent;
+    try {
+      this.parentGraphics = (PGraphics3D) parent.getGraphics();
+    } catch (ClassCastException e) {
+      System.out.println("ModelMapper: Must use P3D rendering mode with ModelMapper library");
+      System.out.println("ModelMapper:   size(P3D, 500, 500)");
+    }
     this.modelCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
     this.projectionCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
     this.model = model;
@@ -56,41 +65,29 @@ public class ModelMapper {
     calibrationData = Calibration.calibrate(pointMapping, parent.width, parent.height);
   }
 
-  public void drawProjectionWithCalibration(PGraphics3D canvas, CalibrationData calibration, int color) {
-    if (!calibration.isReady()) {
-      return;
-    }
+  public void calibrateMode() {
+    this.mode = Mode.CALIBRATE;
+  }
 
-    canvas.resetMatrix();
-    canvas.setProjection(calibration.projectionMatrix);
-    canvas.camera(0, 0, 0, 0, 0, 1, 0, -1, 0);
-    canvas.applyMatrix(calibration.modelViewMatrix);
-    int j = 0;
-    for (PShape shape : model.getChildren()) {
-      canvas.beginShape();
-      canvas.stroke(255);
-      canvas.strokeWeight(3);
-      canvas.fill(0);
-      j++;
-//      canvas.noStroke();
-      for (int i = 0; i < shape.getVertexCount(); i++) {
-        PVector v = shape.getVertex(i);
-        canvas.vertex(v.x, v.y, v.z);
-      }
-      canvas.endShape(CLOSE);
-    }
+  public void renderMode() {
+    this.mode = Mode.RENDER;
+  }
 
-//    for (PShape shape : objOutside.getChildren()) {
-//      canvas.beginShape();
-//      canvas.stroke(color);
-//      canvas.fill(((frameCount / 2 + 1) % 2) * 255);
-//      canvas.noStroke();
-//      for (int i = 0; i < shape.getVertexCount(); i++) {
-//        PVector v = shape.getVertex(i);
-//        canvas.vertex(v.x, v.y, v.z);
-//      }
-//      canvas.endShape(CLOSE);
-//    }
+  public void begin() {
+    parentGraphics.background(0);
+
+    parentGraphics.pushMatrix();
+    parentGraphics.pushProjection();
+
+    parentGraphics.resetMatrix();
+    parentGraphics.setProjection(calibrationData.projectionMatrix);
+    parentGraphics.camera(0, 0, 0, 0, 0, 1, 0, -1, 0);
+    parentGraphics.applyMatrix(calibrationData.modelViewMatrix);
+  }
+
+  public void end() {
+    parentGraphics.popMatrix();
+    parentGraphics.popProjection();
   }
 
   private void drawModel(PShape model, PGraphics canvas) {
@@ -101,6 +98,35 @@ public class ModelMapper {
     canvas.shape(model);
     canvas.endDraw();
   }
+
+  private void saveCalibration() {
+    try {
+      FileOutputStream fileOutputStream = new FileOutputStream(parent.dataPath("calibration.ser"));
+      ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
+      objectOutputStream.writeObject(pointMapping);
+      objectOutputStream.flush();
+      objectOutputStream.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  private void loadCalibration() {
+    pointMapping = new HashMap<>();
+    try {
+      FileInputStream fileInputStream = new FileInputStream(parent.dataPath("calibration.ser"));
+      ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
+      pointMapping = (Map<PVector, PVector>) objectInputStream.readObject();
+      objectInputStream.close();
+    } catch (IOException | ClassNotFoundException e) {
+      System.out.println("ModelMapper: Attempted to load calibration data, but either it does not exist.");
+      System.out.println("ModelMapper: If you have not yet calibrated your projection, this is normal.");
+    }
+  }
+
+  /**
+   * Processing hooks
+   */
 
   public void draw() {
     PVector mouse = new PVector(parent.mouseX, parent.mouseY);
@@ -184,6 +210,7 @@ public class ModelMapper {
     }
   }
 
+  // TODO: is this needed?
   public void post() {
   }
 
@@ -228,39 +255,6 @@ public class ModelMapper {
             ? CalibrationSpace.PIXEL_SPACE
             : CalibrationSpace.MODEL_SPACE;
       }
-    }
-  }
-
-  public void calibrateMode() {
-    this.mode = Mode.CALIBRATE;
-  }
-
-  public void renderMode() {
-    this.mode = Mode.RENDER;
-  }
-
-  private void saveCalibration() {
-    try {
-      FileOutputStream fileOutputStream = new FileOutputStream(parent.dataPath("calibration.ser"));
-      ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
-      objectOutputStream.writeObject(pointMapping);
-      objectOutputStream.flush();
-      objectOutputStream.close();
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
-  }
-
-  private void loadCalibration() {
-    pointMapping = new HashMap<>();
-    try {
-      FileInputStream fileInputStream = new FileInputStream(parent.dataPath("calibration.ser"));
-      ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
-      pointMapping = (Map<PVector, PVector>) objectInputStream.readObject();
-      objectInputStream.close();
-    } catch (IOException | ClassNotFoundException e) {
-      System.out.println("ModelMapper: Attempted to load calibration data, but either it does not exist.");
-      System.out.println("ModelMapper: If you have not yet calibrated your projection, this is normal.");
     }
   }
 }
