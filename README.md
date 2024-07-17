@@ -79,3 +79,18 @@ Please note that any file read from the IntelliJ program should be placed inside
 ## Contributors
 
 This template is based on the [Deep Vision Library](https://github.com/cansik/deep-vision-processing) by [Florian Bruggisser](https://github.com/cansik), and was created as part of [Jeongin Lee](https://github.com/jjeongin)'s [Machine Learning Library](https://github.com/jjeongin/ml4processing) project during Google Summer of Code 2022, mentored by [Andrés Colubri](https://github.com/codeanticode).
+
+## TODO:
+
+- Bring over UI library code into actual library and decide on the interface
+  - Maybe no keyboard / mouse input, just calls to functions
+    - calibrateMode() / renderMode()
+  - Or maybe utility classes to help with UI, but not actually draw anything
+  - PointMap class?
+    - mapPoint(PVector from, PVector to)
+    - CalibrationPoints(PShape shape)
+      - getClosestPoint(input)
+      - mapPoint(input, output)
+- What utilities to provide for drawing?
+  - Stroke vs fills
+  - Shader with normals
