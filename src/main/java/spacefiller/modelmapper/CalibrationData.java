@@ -26,6 +26,6 @@ public class CalibrationData {
 
   @Override
   public String toString() {
-    return "Calibration{" + "projectionMatrix=" + projectionMatrix + ", modelViewMatrix=" + modelViewMatrix + '}';
+    return "Calibration{" + "projectionMatrix=" + projectionMatrix.toString() + ", modelViewMatrix=" + modelViewMatrix.toString() + '}';
   }
 }

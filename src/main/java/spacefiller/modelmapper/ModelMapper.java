@@ -2,6 +2,7 @@ package spacefiller.modelmapper;
 
 import peasy.PeasyCam;
 import processing.core.PApplet;
+import processing.core.PGraphics;
 import processing.core.PShape;
 import processing.core.PVector;
 import processing.event.KeyEvent;
@@ -11,7 +12,7 @@ import processing.opengl.PGraphics3D;
 import java.util.HashMap;
 import java.util.Map;
 
-import static processing.core.PConstants.P3D;
+import static processing.core.PConstants.*;
 import static spacefiller.modelmapper.Utils.*;
 
 public class ModelMapper {
@@ -25,6 +26,7 @@ public class ModelMapper {
 
   private PApplet parent;
   private PGraphics3D modelCanvas;
+  private PGraphics3D projectionCanvas;
   private PShape model;
   private Mode mode;
   private CalibrationSpace space;
@@ -37,6 +39,7 @@ public class ModelMapper {
   public ModelMapper(PApplet parent, PShape model) {
     this.parent = parent;
     this.modelCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
+    this.projectionCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
     this.model = model;
     this.mode = Mode.RENDER;
     this.space = CalibrationSpace.MODEL_SPACE;
@@ -47,26 +50,73 @@ public class ModelMapper {
     this.parent.registerMethod("mouseEvent", this);
     this.parent.registerMethod("keyEvent", this);
     this.parent.registerMethod("post", this);
+
+    // TODO: load old data
+    calibrationData = Calibration.calibrate(pointMapping, parent.width, parent.height);
+  }
+
+  public void drawProjectionWithCalibration(PGraphics3D canvas, CalibrationData calibration, int color) {
+    if (!calibration.isReady()) {
+      return;
+    }
+
+    canvas.resetMatrix();
+    canvas.setProjection(calibration.projectionMatrix);
+    canvas.camera(0, 0, 0, 0, 0, 1, 0, -1, 0);
+    canvas.applyMatrix(calibration.modelViewMatrix);
+    int j = 0;
+    for (PShape shape : model.getChildren()) {
+      canvas.beginShape();
+      canvas.stroke(255);
+      canvas.strokeWeight(3);
+      canvas.fill(0);
+      j++;
+//      canvas.noStroke();
+      for (int i = 0; i < shape.getVertexCount(); i++) {
+        PVector v = shape.getVertex(i);
+        canvas.vertex(v.x, v.y, v.z);
+      }
+      canvas.endShape(CLOSE);
+    }
+
+//    for (PShape shape : objOutside.getChildren()) {
+//      canvas.beginShape();
+//      canvas.stroke(color);
+//      canvas.fill(((frameCount / 2 + 1) % 2) * 255);
+//      canvas.noStroke();
+//      for (int i = 0; i < shape.getVertexCount(); i++) {
+//        PVector v = shape.getVertex(i);
+//        canvas.vertex(v.x, v.y, v.z);
+//      }
+//      canvas.endShape(CLOSE);
+//    }
+  }
+
+
+  private void drawModel(PShape model, PGraphics canvas) {
+    model.disableStyle();
+    canvas.fill(20);
+    canvas.stroke(255);
+    canvas.strokeWeight(2);
+    canvas.shape(model);
+    canvas.endDraw();
   }
 
   public void draw() {
     PVector mouse = new PVector(parent.mouseX, parent.mouseY);
     if (mode == Mode.CALIBRATE) {
-      if (space == CalibrationSpace.MODEL_SPACE) {
-        modelCanvas.beginDraw();
-        modelCanvas.background(0);
-        model.disableStyle();
+      parent.background(0);
 
+      if (space == CalibrationSpace.MODEL_SPACE) {
         // Only turn peasycam on when in calibrate mode and in model space; otherwise use
         // calibrated camera.
         camera.setActive(true);
 
-        // TODO: make fill/stroke customizable when in calibration mode?
-        modelCanvas.fill(50);
-        modelCanvas.stroke(255);
-        modelCanvas.strokeWeight(2);
-        modelCanvas.shape(model);
-        modelCanvas.endDraw();
+        modelCanvas.beginDraw();
+        modelCanvas.scale(1, -1, 1);
+        modelCanvas.background(0);
+
+        drawModel(model, modelCanvas);
 
         parent.image(modelCanvas, 0, 0);
 
@@ -97,6 +147,37 @@ public class ModelMapper {
         }
       } else if (space == CalibrationSpace.PIXEL_SPACE) {
         camera.setActive(false);
+
+        if (calibrationData.isReady()) {
+          projectionCanvas.beginDraw();
+          projectionCanvas.clear();
+
+          projectionCanvas.resetMatrix();
+          projectionCanvas.setProjection(calibrationData.projectionMatrix);
+          projectionCanvas.camera(0, 0, 0, 0, 0, 1, 0, -1, 0);
+          projectionCanvas.applyMatrix(calibrationData.modelViewMatrix);
+
+          drawModel(model, projectionCanvas);
+
+          projectionCanvas.endDraw();
+        } else {
+          parent.textMode(CENTER);
+          parent.text("No calibration", (float) parent.width / 2, (float) parent.height / 2);
+        }
+
+        parent.image(projectionCanvas, 0, 0);
+
+        for (PVector modelPoint : pointMapping.keySet()) {
+          PVector projectedPoint = pointMapping.get(modelPoint);
+          parent.strokeWeight(5);
+          if (selectedVertex != null && selectedVertex.equals(modelPoint)) {
+            parent.stroke(0, 255, 255);
+          } else {
+            parent.stroke(100);
+          }
+          parent.noFill();
+          parent.ellipse(projectedPoint.x, projectedPoint.y, 15, 15);
+        }
       }
     } else if (mode == Mode.RENDER) {
       camera.setActive(false);
