@@ -9,6 +9,7 @@ import processing.event.KeyEvent;
 import processing.event.MouseEvent;
 import processing.opengl.PGraphics3D;
 
+import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -51,7 +52,7 @@ public class ModelMapper {
     this.parent.registerMethod("keyEvent", this);
     this.parent.registerMethod("post", this);
 
-    // TODO: load old data
+    loadCalibration();
     calibrationData = Calibration.calibrate(pointMapping, parent.width, parent.height);
   }
 
@@ -91,7 +92,6 @@ public class ModelMapper {
 //      canvas.endShape(CLOSE);
 //    }
   }
-
 
   private void drawModel(PShape model, PGraphics canvas) {
     model.disableStyle();
@@ -212,7 +212,7 @@ public class ModelMapper {
           if (selectedVertex != null) {
             pointMapping.put(selectedVertex, mouse);
             calibrationData = Calibration.calibrate(pointMapping, parent.width, parent.height);
-            // save();
+            saveCalibration();
           }
           break;
       }
@@ -237,5 +237,30 @@ public class ModelMapper {
 
   public void renderMode() {
     this.mode = Mode.RENDER;
+  }
+
+  private void saveCalibration() {
+    try {
+      FileOutputStream fileOutputStream = new FileOutputStream(parent.dataPath("calibration.ser"));
+      ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
+      objectOutputStream.writeObject(pointMapping);
+      objectOutputStream.flush();
+      objectOutputStream.close();
+    } catch (IOException e) {
+      e.printStackTrace();
+    }
+  }
+
+  private void loadCalibration() {
+    pointMapping = new HashMap<>();
+    try {
+      FileInputStream fileInputStream = new FileInputStream(parent.dataPath("calibration.ser"));
+      ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
+      pointMapping = (Map<PVector, PVector>) objectInputStream.readObject();
+      objectInputStream.close();
+    } catch (IOException | ClassNotFoundException e) {
+      System.out.println("ModelMapper: Attempted to load calibration data, but either it does not exist.");
+      System.out.println("ModelMapper: If you have not yet calibrated your projection, this is normal.");
+    }
   }
 }
