@@ -17,6 +17,8 @@ import static processing.core.PConstants.*;
 import static spacefiller.modelmapper.Utils.*;
 
 public class ModelMapper {
+  private static final float UI_CIRCLE_RADIUS = 15;
+
   private enum Mode {
     CALIBRATE, RENDER
   }
@@ -92,7 +94,7 @@ public class ModelMapper {
 
   private void drawModel(PShape model, PGraphics canvas) {
     model.disableStyle();
-    canvas.fill(20);
+    canvas.fill(0);
     canvas.stroke(255);
     canvas.strokeWeight(2);
     canvas.shape(model);
@@ -139,8 +141,8 @@ public class ModelMapper {
         camera.setActive(true);
 
         modelCanvas.beginDraw();
+        modelCanvas.clear();
         modelCanvas.scale(1, -1, 1);
-        modelCanvas.background(0);
 
         drawModel(model, modelCanvas);
 
@@ -150,26 +152,22 @@ public class ModelMapper {
 
         for (PVector modelPoint : pointMapping.keySet()) {
           PVector projectedPoint = worldToScreen(modelPoint, modelCanvas);
-          parent.strokeWeight(5);
-          parent.stroke(100);
-          parent.noFill();
-          parent.ellipse(projectedPoint.x, projectedPoint.y, 15, 15);
+          parent.noStroke();
+          parent.fill(255, 100);
+          parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS * 2, UI_CIRCLE_RADIUS * 2);
         }
 
         if (closestPoint != null) {
           PVector projectedVertex = worldToScreen(closestPoint, modelCanvas);
+          parent.stroke(255);
+          parent.strokeWeight(2);
           parent.noFill();
-          parent.stroke(100, 0, 100);
-          parent.strokeWeight(5);
-          parent.ellipse(projectedVertex.x, projectedVertex.y, 15, 15);
+          parent.ellipse(projectedVertex.x, projectedVertex.y, UI_CIRCLE_RADIUS * 2, UI_CIRCLE_RADIUS * 2);
         }
 
         if (selectedVertex != null) {
           PVector projectedVertex = worldToScreen(selectedVertex, modelCanvas);
-          parent.noFill();
-          parent.stroke(255, 0, 255);
-          parent.strokeWeight(5);
-          parent.ellipse(projectedVertex.x, projectedVertex.y, 15, 15);
+          drawCrossHairs(projectedVertex.x, projectedVertex.y, parent.color(255, 0, 255));
         }
       } else if (space == CalibrationSpace.PIXEL_SPACE) {
         camera.setActive(false);
@@ -196,18 +194,44 @@ public class ModelMapper {
         for (PVector modelPoint : pointMapping.keySet()) {
           PVector projectedPoint = pointMapping.get(modelPoint);
           parent.strokeWeight(5);
+
+          parent.noStroke();
+          parent.fill(255, 100);
+          parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS * 2, UI_CIRCLE_RADIUS * 2);
+          parent.fill(255);
+          parent.ellipse(projectedPoint.x, projectedPoint.y, 2, 2);
+
           if (selectedVertex != null && selectedVertex.equals(modelPoint)) {
-            parent.stroke(0, 255, 255);
-          } else {
-            parent.stroke(100);
+            drawCrossHairs(projectedPoint.x, projectedPoint.y, parent.color(0, 255, 255));
           }
+        }
+
+        PVector closestPoint = getClosestPointByMappedPoint(mouse, pointMapping);
+        if (closestPoint != null) {
+          PVector projectedPoint = pointMapping.get(closestPoint);
+          parent.stroke(255);
+          parent.strokeWeight(2);
           parent.noFill();
-          parent.ellipse(projectedPoint.x, projectedPoint.y, 15, 15);
+          parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS * 2, UI_CIRCLE_RADIUS * 2);
         }
       }
+
+      // Draw mouse cross-hairs
+      drawCrossHairs(parent.mouseX, parent.mouseY, parent.color(255));
     } else if (mode == Mode.RENDER) {
       camera.setActive(false);
     }
+  }
+
+  private void drawCrossHairs(float x, float y, int color) {
+    parent.stroke(color);
+    parent.strokeWeight(2);
+    parent.line(0, y, parent.width, y);
+    parent.line(x, 0, x, parent.height);
+    parent.noStroke();
+    parent.fill(color);
+    parent.ellipseMode(CENTER);
+    parent.ellipse(x, y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
   }
 
   // TODO: is this needed?
