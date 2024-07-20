@@ -17,7 +17,7 @@ import static processing.core.PConstants.*;
 import static spacefiller.modelmapper.Utils.*;
 
 public class ModelMapper {
-  private static final float UI_CIRCLE_RADIUS = 15;
+  private static final float UI_CIRCLE_RADIUS = 5;
 
   private enum Mode {
     CALIBRATE, RENDER
@@ -43,6 +43,11 @@ public class ModelMapper {
   private CalibrationData calibrationData;
 
   public ModelMapper(PApplet parent, PShape model) {
+    // If we share the model with the client, then when the client renders it, they can
+    // update state that will impact our ability to render it. For consistent rendering,
+    // make our own private copy.
+    this.model = Shapes.createShape(parent, model);
+
     this.parent = parent;
     try {
       this.parentGraphics = (PGraphics3D) parent.getGraphics();
@@ -78,22 +83,29 @@ public class ModelMapper {
   public void begin() {
     parentGraphics.background(0);
 
-    parentGraphics.pushMatrix();
-    parentGraphics.pushProjection();
+    if (calibrationData.isReady()) {
+      parentGraphics.pushMatrix();
+      parentGraphics.pushProjection();
 
-    parentGraphics.resetMatrix();
-    parentGraphics.setProjection(calibrationData.projectionMatrix);
-    parentGraphics.camera(0, 0, 0, 0, 0, 1, 0, -1, 0);
-    parentGraphics.applyMatrix(calibrationData.modelViewMatrix);
+      parentGraphics.resetMatrix();
+      parentGraphics.setProjection(calibrationData.projectionMatrix);
+      parentGraphics.camera(0, 0, 0, 0, 0, 1, 0, -1, 0);
+      parentGraphics.applyMatrix(calibrationData.modelViewMatrix);
+    }
   }
 
   public void end() {
-    parentGraphics.popMatrix();
-    parentGraphics.popProjection();
+    if (calibrationData.isReady()) {
+      parentGraphics.popMatrix();
+      parentGraphics.popProjection();
+    }
   }
 
   private void drawModel(PShape model, PGraphics canvas) {
+    canvas.resetShader();
+
     model.disableStyle();
+
     canvas.fill(0);
     canvas.stroke(255);
     canvas.strokeWeight(2);
@@ -131,6 +143,8 @@ public class ModelMapper {
    */
 
   public void draw() {
+    parentGraphics.resetShader();
+
     PVector mouse = new PVector(parent.mouseX, parent.mouseY);
     if (mode == Mode.CALIBRATE) {
       parent.background(0);
@@ -139,6 +153,7 @@ public class ModelMapper {
         // Only turn peasycam on when in calibrate mode and in model space; otherwise use
         // calibrated camera.
         camera.setActive(true);
+        camera.feed();
 
         modelCanvas.beginDraw();
         modelCanvas.clear();
@@ -224,7 +239,7 @@ public class ModelMapper {
   }
 
   private void drawCrossHairs(float x, float y, int color) {
-    parent.stroke(color);
+    parent.stroke(color, 50);
     parent.strokeWeight(2);
     parent.line(0, y, parent.width, y);
     parent.line(x, 0, x, parent.height);

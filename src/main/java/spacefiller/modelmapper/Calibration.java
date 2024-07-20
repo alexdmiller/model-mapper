@@ -125,7 +125,7 @@ public class Calibration {
     double cx = principalPoint.x;
     double cy = principalPoint.y;
 
-    float nearDist = 10;
+    float nearDist = -2000;
     float farDist = 2000;
 
     float left = (float) (nearDist * (-cx) / fx);
