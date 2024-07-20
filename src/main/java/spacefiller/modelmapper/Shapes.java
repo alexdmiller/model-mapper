@@ -12,15 +12,11 @@ import static processing.core.PShape.Z;
 
 public class Shapes {
   static public PShape createShape(PApplet parent, PShape src) {
-    System.out.println("Family = " + src.getFamily());
-    System.out.println("Kind = " + src.getKind());
     PShape dest = null;
     if (src.getFamily() == GROUP) {
-      System.out.println("Creating group");
       dest = parent.createShape(GROUP);
       copyGroup(parent, src, dest);
     } else if (src.getFamily() == GEOMETRY) {
-      System.out.println("Creating geometry");
       dest = parent.createShape(GEOMETRY);
       copyGeometry(src, dest);
     }
