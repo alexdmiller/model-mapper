@@ -8,16 +8,20 @@ import processing.core.PVector;
 import processing.event.KeyEvent;
 import processing.event.MouseEvent;
 import processing.opengl.PGraphics3D;
+import processing.opengl.PShader;
 
 import java.io.*;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import static processing.core.PConstants.*;
 import static spacefiller.modelmapper.Utils.*;
 
 public class ModelMapper {
-  private static final float UI_CIRCLE_RADIUS = 5;
+  private static final float UI_CIRCLE_RADIUS = 10;
 
   private enum Mode {
     CALIBRATE, RENDER
@@ -41,6 +45,8 @@ public class ModelMapper {
   private PVector selectedVertex;
   private Map<PVector, PVector> pointMapping;
   private CalibrationData calibrationData;
+
+  PShader modelRenderShader;
 
   public ModelMapper(PApplet parent, PShape model) {
     // If we share the model with the client, then when the client renders it, they can
@@ -67,6 +73,10 @@ public class ModelMapper {
     this.parent.registerMethod("mouseEvent", this);
     this.parent.registerMethod("keyEvent", this);
     this.parent.registerMethod("post", this);
+
+    File tempFile = IO.extractResourceToFile("/model.frag.glsl");
+    String filePath = tempFile.getAbsolutePath();
+    modelRenderShader = parent.loadShader(filePath);
 
     loadCalibration();
     calibrationData = Calibration.calibrate(pointMapping, parent.width, parent.height);
@@ -147,9 +157,12 @@ public class ModelMapper {
 
     PVector mouse = new PVector(parent.mouseX, parent.mouseY);
     if (mode == Mode.CALIBRATE) {
+      parent.noCursor();
       parent.background(0);
 
       if (space == CalibrationSpace.MODEL_SPACE) {
+        parent.background(0);
+
         // Only turn peasycam on when in calibrate mode and in model space; otherwise use
         // calibrated camera.
         camera.setActive(true);
@@ -161,15 +174,29 @@ public class ModelMapper {
 
         drawModel(model, modelCanvas);
 
-        parent.image(modelCanvas, 0, 0);
+        parent.resetShader();
+
+        parent.textureMode(NORMAL);
+        parent.beginShape();
+        parent.texture(modelCanvas);
+
+        modelRenderShader.set("time", parent.frameCount);
+        parent.shader(modelRenderShader);
+
+        parent.noStroke();
+        parent.vertex(0, 0, 0, 0);
+        parent.vertex(parent.width, 0, 1, 0);
+        parent.vertex(parent.width, parent.height, 1, 1);
+        parent.vertex(0, parent.height, 0, 1);
+        parent.endShape();
 
         PVector closestPoint = getClosestPointOnShape(mouse, model, modelCanvas);
 
         for (PVector modelPoint : pointMapping.keySet()) {
           PVector projectedPoint = worldToScreen(modelPoint, modelCanvas);
           parent.noStroke();
-          parent.fill(255, 100);
-          parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS * 2, UI_CIRCLE_RADIUS * 2);
+          parent.fill(255, 200);
+          parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
         }
 
         if (closestPoint != null) {
@@ -177,7 +204,7 @@ public class ModelMapper {
           parent.stroke(255);
           parent.strokeWeight(2);
           parent.noFill();
-          parent.ellipse(projectedVertex.x, projectedVertex.y, UI_CIRCLE_RADIUS * 2, UI_CIRCLE_RADIUS * 2);
+          parent.ellipse(projectedVertex.x, projectedVertex.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
         }
 
         if (selectedVertex != null) {
@@ -211,8 +238,8 @@ public class ModelMapper {
           parent.strokeWeight(5);
 
           parent.noStroke();
-          parent.fill(255, 100);
-          parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS * 2, UI_CIRCLE_RADIUS * 2);
+          parent.fill(255, 200);
+          parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
           parent.fill(255);
           parent.ellipse(projectedPoint.x, projectedPoint.y, 2, 2);
 
@@ -227,19 +254,21 @@ public class ModelMapper {
           parent.stroke(255);
           parent.strokeWeight(2);
           parent.noFill();
-          parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS * 2, UI_CIRCLE_RADIUS * 2);
+          parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
         }
       }
 
       // Draw mouse cross-hairs
       drawCrossHairs(parent.mouseX, parent.mouseY, parent.color(255));
+//      calibrationData = Calibration.calibrate(pointMapping, parent.width, parent.height, parent.mouseX - parent.width / 2f, parent.mouseY - parent.height / 2f);
     } else if (mode == Mode.RENDER) {
       camera.setActive(false);
+      parent.cursor();
     }
   }
 
   private void drawCrossHairs(float x, float y, int color) {
-    parent.stroke(color, 50);
+    parent.stroke(color, 150);
     parent.strokeWeight(2);
     parent.line(0, y, parent.width, y);
     parent.line(x, 0, x, parent.height);
