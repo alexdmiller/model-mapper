@@ -26,14 +26,22 @@ public class IO {
     }
   }
 
-  public static File extractResourceToFile(String resourcePath) {
+  private static String getFileExtension(String name) {
+    int lastIndexOf = name.lastIndexOf(".");
+    if (lastIndexOf == -1) {
+      return ""; // empty extension
+    }
+    return name.substring(lastIndexOf);
+  }
+
+  public static String extractResourceToFile(String resourcePath) {
     try {
       InputStream resourceAsStream = ModelMapper.class.getResourceAsStream(resourcePath);
       if (resourceAsStream == null) {
         throw new IllegalArgumentException("Resource not found: " + resourcePath);
       }
-
-      File tempFile = Files.createTempFile("temp", ".glsl").toFile();
+      String extension = getFileExtension(resourcePath);
+      File tempFile = Files.createTempFile(null, extension).toFile();
       tempFile.deleteOnExit();
 
       try (FileOutputStream out = new FileOutputStream(tempFile)) {
@@ -44,7 +52,7 @@ public class IO {
         }
       }
 
-      return tempFile;
+      return tempFile.getAbsolutePath();
     } catch (IOException e) {
       e.printStackTrace();
       return null;

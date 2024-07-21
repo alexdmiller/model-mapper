@@ -1,10 +1,7 @@
 package spacefiller.modelmapper;
 
+import processing.core.*;
 import spacefiller.peasy.PeasyCam;
-import processing.core.PApplet;
-import processing.core.PGraphics;
-import processing.core.PShape;
-import processing.core.PVector;
 import processing.event.KeyEvent;
 import processing.event.MouseEvent;
 import processing.opengl.PGraphics3D;
@@ -45,6 +42,13 @@ public class ModelMapper {
 
   PShader modelRenderShader;
 
+  // UI images
+  PImage uiModel;
+  PImage uiProjection;
+  PImage uiNoCalibration;
+  PImage uiPressSpace;
+  private int uiPressSpaceCountdown;
+
   public ModelMapper(PApplet parent, PShape model) {
     // If we share the model with the client, then when the client renders it, they can
     // update state that will impact our ability to render it. For consistent rendering,
@@ -68,11 +72,18 @@ public class ModelMapper {
     this.parent.registerMethod("draw", this);
     this.parent.registerMethod("mouseEvent", this);
     this.parent.registerMethod("keyEvent", this);
-    this.parent.registerMethod("post", this);
 
-    File tempFile = IO.extractResourceToFile("/model.frag.glsl");
-    String filePath = tempFile.getAbsolutePath();
-    modelRenderShader = parent.loadShader(filePath);
+    modelRenderShader = parent.loadShader(
+        IO.extractResourceToFile("/model.frag.glsl"));
+    uiModel = parent.loadImage(
+        IO.extractResourceToFile("/ui-model.png"));
+    uiProjection = parent.loadImage(
+        IO.extractResourceToFile("/ui-projection.png"));
+    uiNoCalibration = parent.loadImage(
+        IO.extractResourceToFile("/no-calibration.png"));
+    uiPressSpace = parent.loadImage(
+        IO.extractResourceToFile("/press-space.png"));
+    uiPressSpaceCountdown = 1000;
 
     loadCalibration();
     calibrationData = Calibration.calibrate(pointMapping, parent.width, parent.height);
@@ -139,8 +150,8 @@ public class ModelMapper {
       pointMapping = (Map<PVector, PVector>) objectInputStream.readObject();
       objectInputStream.close();
     } catch (IOException | ClassNotFoundException e) {
-      System.out.println("ModelMapper: Attempted to load calibration data, but either it does not exist.");
-      System.out.println("ModelMapper: If you have not yet calibrated your projection, this is normal.");
+      System.out.println("ModelMapper: Attempted to load calibration data, but it does not exist yet.");
+      System.out.println("ModelMapper: If you have not yet calibrated your projection, this is normal!");
     }
   }
 
@@ -208,6 +219,13 @@ public class ModelMapper {
             PVector projectedVertex = worldToScreen(selectedVertex, modelCanvas);
             drawCrossHairs(projectedVertex.x, projectedVertex.y, parent.color(255, 0, 255));
           }
+
+          parent.image(
+              uiModel,
+              20,
+              parent.height - uiModel.height / 2f - 20,
+              uiModel.width / 2f,
+              uiModel.height / 2f);
         } else if (space == CalibrationSpace.PIXEL_SPACE) {
           camera.setActive(false);
 
@@ -224,8 +242,14 @@ public class ModelMapper {
 
             projectionCanvas.endDraw();
           } else {
-            parent.textMode(CENTER);
-            parent.text("No calibration", (float) parent.width / 2, (float) parent.height / 2);
+            parent.image(
+                uiNoCalibration,
+                parent.width / 2f - uiNoCalibration.width / 4f,
+                parent.height / 2f - uiNoCalibration.height / 4f,
+                uiNoCalibration.width / 2f,
+                uiNoCalibration.height / 2f);
+//            parent.textMode(CENTER);
+//            parent.text("No calibration", (float) parent.width / 2, (float) parent.height / 2);
           }
 
           parent.image(projectionCanvas, 0, 0);
@@ -253,6 +277,13 @@ public class ModelMapper {
             parent.noFill();
             parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
           }
+
+          parent.image(
+            uiProjection,
+            20,
+            parent.height - uiProjection.height / 2f - 20,
+            uiProjection.width / 2f,
+            uiProjection.height / 2f);
         }
 
         // Draw mouse cross-hairs
@@ -260,6 +291,27 @@ public class ModelMapper {
       } else if (mode == Mode.RENDER) {
         camera.setActive(false);
         parent.cursor();
+
+        // Show UI hint for switching to calibration mode on a countdown timer; hide it
+        // after `uiPressSpaceCountdown` frames have passed. `uiPressSpaceCountdown` is
+        // set when the sketch is initialized and whenever the user switches from
+        // calibration mode to render mode.
+        if (uiPressSpaceCountdown > 0) {
+          parent.hint(DISABLE_DEPTH_TEST);
+          parent.rectMode(CENTER);
+          if (uiPressSpaceCountdown < 100){
+            parent.tint(255, uiPressSpaceCountdown / 100f * 255);
+          }
+          parent.image(
+              uiPressSpace,
+              20,
+              parent.height - uiPressSpace.height / 2f - 20,
+              uiPressSpace.width / 2f,
+              uiPressSpace.height / 2f);
+          parent.hint(ENABLE_DEPTH_TEST);
+          parent.tint(255, 255);
+          uiPressSpaceCountdown--;
+        }
       }
     } catch (Exception e) {
       e.printStackTrace();
@@ -276,10 +328,6 @@ public class ModelMapper {
     parent.fill(color);
     parent.ellipseMode(CENTER);
     parent.ellipse(x, y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
-  }
-
-  // TODO: is this needed?
-  public void post() {
   }
 
   public void mouseEvent(MouseEvent event) {
@@ -317,6 +365,7 @@ public class ModelMapper {
   public void keyEvent(KeyEvent event) {
     if (event.getAction() == KeyEvent.PRESS) {
       if (event.getKeyCode() == 32) { // space
+        uiPressSpaceCountdown = 300;
         mode = (mode == Mode.CALIBRATE) ? Mode.RENDER : Mode.CALIBRATE;
       } else if (event.getKeyCode() == 9) { // tab
         space = (space == CalibrationSpace.MODEL_SPACE)
