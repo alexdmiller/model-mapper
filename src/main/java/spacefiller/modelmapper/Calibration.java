@@ -127,8 +127,11 @@ public class Calibration {
 
 
     // TODO: These numbers seem flipped -- shouldn't farDist be positive?
-    float nearDist = 2000f;
-    float farDist = -2000f;
+    // TODO: how to choose these numbers?
+    float nearDist = 500f;
+    float farDist = -1000f;
+//    float nearDist = 10000f;
+//    float farDist = -10000f;
 
     float left = (float) (nearDist * (-cx) / fx);
     float right = (float) (nearDist * (width - cx) / fx);

@@ -2,6 +2,7 @@ package spacefiller.modelmapper;
 
 import processing.core.PApplet;
 import processing.core.PShape;
+import processing.core.PVector;
 
 import static processing.core.PShape.GROUP;
 import static processing.core.PShape.GEOMETRY;
@@ -35,12 +36,9 @@ public class Shapes {
     dest.beginShape(src.getKind());
 
     for (int i = 0; i < src.getVertexCount(); i++) {
-      float[] vert = src.getVertex(i).array();
-      if (vert[Z] == 0) {
-        dest.vertex(vert[X], vert[Y]);
-      } else {
-        dest.vertex(vert[X], vert[Y], vert[Z]);
-      }
+      PVector vert = src.getVertex(i);
+      PVector uv = new PVector(src.getTextureU(i), src.getTextureV(i));
+      dest.vertex(vert.x, vert.y, vert.z, uv.x, uv.y);
     }
 
     dest.endShape();

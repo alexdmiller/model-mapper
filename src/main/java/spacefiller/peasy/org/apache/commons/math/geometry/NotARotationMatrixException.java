@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 
-package peasy.org.apache.commons.math.geometry;
+package spacefiller.peasy.org.apache.commons.math.geometry;
 
-import peasy.org.apache.commons.math.MathException;
+import spacefiller.peasy.org.apache.commons.math.MathException;
 
 /**
  * This class represents exceptions thrown while building rotations from

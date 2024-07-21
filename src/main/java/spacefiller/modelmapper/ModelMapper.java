@@ -1,6 +1,6 @@
 package spacefiller.modelmapper;
 
-import peasy.PeasyCam;
+import spacefiller.peasy.PeasyCam;
 import processing.core.PApplet;
 import processing.core.PGraphics;
 import processing.core.PShape;
@@ -12,10 +12,7 @@ import processing.opengl.PShader;
 
 import java.io.*;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import static processing.core.PConstants.*;
 import static spacefiller.modelmapper.Utils.*;
@@ -63,7 +60,6 @@ public class ModelMapper {
     }
     this.modelCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
     this.projectionCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
-    this.model = model;
     this.mode = Mode.RENDER;
     this.space = CalibrationSpace.MODEL_SPACE;
     this.camera = new PeasyCam(parent, modelCanvas, 400);
@@ -153,117 +149,121 @@ public class ModelMapper {
    */
 
   public void draw() {
-    parentGraphics.resetShader();
+    try {
+      parentGraphics.resetShader();
 
-    PVector mouse = new PVector(parent.mouseX, parent.mouseY);
-    if (mode == Mode.CALIBRATE) {
-      parent.noCursor();
-      parent.background(0);
-
-      if (space == CalibrationSpace.MODEL_SPACE) {
+      PVector mouse = new PVector(parent.mouseX, parent.mouseY);
+      if (mode == Mode.CALIBRATE) {
+        parent.noCursor();
         parent.background(0);
 
-        // Only turn peasycam on when in calibrate mode and in model space; otherwise use
-        // calibrated camera.
-        camera.setActive(true);
-        camera.feed();
+        if (space == CalibrationSpace.MODEL_SPACE) {
+          parent.background(0);
 
-        modelCanvas.beginDraw();
-        modelCanvas.clear();
-        modelCanvas.scale(1, -1, 1);
+          // Only turn peasycam on when in calibrate mode and in model space; otherwise use
+          // calibrated camera.
+          camera.setActive(true);
+          camera.feed();
 
-        drawModel(model, modelCanvas);
+          modelCanvas.beginDraw();
+          modelCanvas.clear();
+          modelCanvas.scale(1, -1, 1);
 
-        parent.resetShader();
+          drawModel(model, modelCanvas);
 
-        parent.textureMode(NORMAL);
-        parent.beginShape();
-        parent.texture(modelCanvas);
+          parent.resetShader();
 
-        modelRenderShader.set("time", parent.frameCount);
-        parent.shader(modelRenderShader);
+          parent.textureMode(NORMAL);
+          parent.beginShape();
+          parent.texture(modelCanvas);
 
-        parent.noStroke();
-        parent.vertex(0, 0, 0, 0);
-        parent.vertex(parent.width, 0, 1, 0);
-        parent.vertex(parent.width, parent.height, 1, 1);
-        parent.vertex(0, parent.height, 0, 1);
-        parent.endShape();
-
-        PVector closestPoint = getClosestPointOnShape(mouse, model, modelCanvas);
-
-        for (PVector modelPoint : pointMapping.keySet()) {
-          PVector projectedPoint = worldToScreen(modelPoint, modelCanvas);
-          parent.noStroke();
-          parent.fill(255, 200);
-          parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
-        }
-
-        if (closestPoint != null) {
-          PVector projectedVertex = worldToScreen(closestPoint, modelCanvas);
-          parent.stroke(255);
-          parent.strokeWeight(2);
-          parent.noFill();
-          parent.ellipse(projectedVertex.x, projectedVertex.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
-        }
-
-        if (selectedVertex != null) {
-          PVector projectedVertex = worldToScreen(selectedVertex, modelCanvas);
-          drawCrossHairs(projectedVertex.x, projectedVertex.y, parent.color(255, 0, 255));
-        }
-      } else if (space == CalibrationSpace.PIXEL_SPACE) {
-        camera.setActive(false);
-
-        if (calibrationData.isReady()) {
-          projectionCanvas.beginDraw();
-          projectionCanvas.clear();
-
-          projectionCanvas.resetMatrix();
-          projectionCanvas.setProjection(calibrationData.projectionMatrix);
-          projectionCanvas.camera(0, 0, 0, 0, 0, 1, 0, -1, 0);
-          projectionCanvas.applyMatrix(calibrationData.modelViewMatrix);
-
-          drawModel(model, projectionCanvas);
-
-          projectionCanvas.endDraw();
-        } else {
-          parent.textMode(CENTER);
-          parent.text("No calibration", (float) parent.width / 2, (float) parent.height / 2);
-        }
-
-        parent.image(projectionCanvas, 0, 0);
-
-        for (PVector modelPoint : pointMapping.keySet()) {
-          PVector projectedPoint = pointMapping.get(modelPoint);
-          parent.strokeWeight(5);
+          modelRenderShader.set("time", parent.frameCount);
+          parent.shader(modelRenderShader);
 
           parent.noStroke();
-          parent.fill(255, 200);
-          parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
-          parent.fill(255);
-          parent.ellipse(projectedPoint.x, projectedPoint.y, 2, 2);
+          parent.vertex(0, 0, 0, 0);
+          parent.vertex(parent.width, 0, 1, 0);
+          parent.vertex(parent.width, parent.height, 1, 1);
+          parent.vertex(0, parent.height, 0, 1);
+          parent.endShape();
 
-          if (selectedVertex != null && selectedVertex.equals(modelPoint)) {
-            drawCrossHairs(projectedPoint.x, projectedPoint.y, parent.color(0, 255, 255));
+          PVector closestPoint = getClosestPointOnShape(mouse, model, modelCanvas);
+
+          for (PVector modelPoint : pointMapping.keySet()) {
+            PVector projectedPoint = worldToScreen(modelPoint, modelCanvas);
+            parent.noStroke();
+            parent.fill(255, 200);
+            parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
+          }
+
+          if (closestPoint != null) {
+            PVector projectedVertex = worldToScreen(closestPoint, modelCanvas);
+            parent.stroke(255);
+            parent.strokeWeight(2);
+            parent.noFill();
+            parent.ellipse(projectedVertex.x, projectedVertex.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
+          }
+
+          if (selectedVertex != null) {
+            PVector projectedVertex = worldToScreen(selectedVertex, modelCanvas);
+            drawCrossHairs(projectedVertex.x, projectedVertex.y, parent.color(255, 0, 255));
+          }
+        } else if (space == CalibrationSpace.PIXEL_SPACE) {
+          camera.setActive(false);
+
+          if (calibrationData.isReady()) {
+            projectionCanvas.beginDraw();
+            projectionCanvas.clear();
+
+            projectionCanvas.resetMatrix();
+            projectionCanvas.setProjection(calibrationData.projectionMatrix);
+            projectionCanvas.camera(0, 0, 0, 0, 0, 1, 0, -1, 0);
+            projectionCanvas.applyMatrix(calibrationData.modelViewMatrix);
+
+            drawModel(model, projectionCanvas);
+
+            projectionCanvas.endDraw();
+          } else {
+            parent.textMode(CENTER);
+            parent.text("No calibration", (float) parent.width / 2, (float) parent.height / 2);
+          }
+
+          parent.image(projectionCanvas, 0, 0);
+
+          for (PVector modelPoint : pointMapping.keySet()) {
+            PVector projectedPoint = pointMapping.get(modelPoint);
+            parent.strokeWeight(5);
+
+            parent.noStroke();
+            parent.fill(255, 200);
+            parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
+            parent.fill(255);
+            parent.ellipse(projectedPoint.x, projectedPoint.y, 2, 2);
+
+            if (selectedVertex != null && selectedVertex.equals(modelPoint)) {
+              drawCrossHairs(projectedPoint.x, projectedPoint.y, parent.color(0, 255, 255));
+            }
+          }
+
+          PVector closestPoint = getClosestPointByMappedPoint(mouse, pointMapping);
+          if (closestPoint != null) {
+            PVector projectedPoint = pointMapping.get(closestPoint);
+            parent.stroke(255);
+            parent.strokeWeight(2);
+            parent.noFill();
+            parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
           }
         }
 
-        PVector closestPoint = getClosestPointByMappedPoint(mouse, pointMapping);
-        if (closestPoint != null) {
-          PVector projectedPoint = pointMapping.get(closestPoint);
-          parent.stroke(255);
-          parent.strokeWeight(2);
-          parent.noFill();
-          parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
-        }
+        // Draw mouse cross-hairs
+        drawCrossHairs(parent.mouseX, parent.mouseY, parent.color(255));
+      } else if (mode == Mode.RENDER) {
+        camera.setActive(false);
+        parent.cursor();
       }
-
-      // Draw mouse cross-hairs
-      drawCrossHairs(parent.mouseX, parent.mouseY, parent.color(255));
-//      calibrationData = Calibration.calibrate(pointMapping, parent.width, parent.height, parent.mouseX - parent.width / 2f, parent.mouseY - parent.height / 2f);
-    } else if (mode == Mode.RENDER) {
-      camera.setActive(false);
-      parent.cursor();
+    } catch (Exception e) {
+      e.printStackTrace();
+      throw e;
     }
   }
 

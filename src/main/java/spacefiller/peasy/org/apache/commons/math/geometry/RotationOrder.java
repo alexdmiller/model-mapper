@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package peasy.org.apache.commons.math.geometry;
+package spacefiller.peasy.org.apache.commons.math.geometry;
 
 /**
  * This class is a utility representing a rotation order specification for

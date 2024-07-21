@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package peasy.org.apache.commons.math.geometry;
+package spacefiller.peasy.org.apache.commons.math.geometry;
 
 import java.io.Serializable;
 

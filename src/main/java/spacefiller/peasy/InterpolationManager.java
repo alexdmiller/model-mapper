@@ -1,9 +1,9 @@
 /**
  * 
  */
-package peasy;
+package spacefiller.peasy;
 
-import peasy.PeasyCam.AbstractInterp;
+import spacefiller.peasy.PeasyCam.AbstractInterp;
 
 class InterpolationManager {
 	private AbstractInterp currentInterpolator = null;

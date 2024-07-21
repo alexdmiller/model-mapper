@@ -1,5 +1,5 @@
 /*
-   The PeasyCam Processing library, which provides an easy-peasy
+   The PeasyCam Processing library, which provides an easy-spacefiller.peasy
    camera for 3D sketching.
   
    Copyright 2008 Jonathan Feinberg
@@ -16,7 +16,7 @@
    See the License for the specific language governing permissions and
    limitations under the License.
  */
-package peasy;
+package spacefiller.peasy;
 
 /**
  * Based on a damned clever and aesthetic idea by David Bollinger.

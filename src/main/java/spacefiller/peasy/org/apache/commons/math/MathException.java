@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package peasy.org.apache.commons.math;
+package spacefiller.peasy.org.apache.commons.math;
 
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -88,7 +88,7 @@ public class MathException extends Exception {
 					|| (!cachedResources.getLocale().equals(locale))) {
 				// caching the resource bundle
 				cachedResources = ResourceBundle.getBundle(
-						"peasy.org.apache.commons.math.MessagesResources", locale);
+						"spacefiller.peasy.org.apache.commons.math.MessagesResources", locale);
 			}
 
 			if (cachedResources.getLocale().getLanguage().equals(locale.getLanguage())) {
