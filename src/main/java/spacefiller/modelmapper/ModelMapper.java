@@ -165,7 +165,8 @@ public class ModelMapper {
 
   public void draw() {
     try {
-      parentGraphics.resetShader();
+      parent.resetShader();
+      parent.noLights();
 
       PVector mouse = new PVector(parent.mouseX, parent.mouseY);
       if (mode == Mode.CALIBRATE) {
@@ -216,7 +217,7 @@ public class ModelMapper {
             parent.stroke(255);
             parent.strokeWeight(2);
             parent.noFill();
-            parent.ellipse(projectedVertex.x, projectedVertex.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
+            parent.ellipse(projectedVertex.x, projectedVertex.y, UI_CIRCLE_RADIUS + 5, UI_CIRCLE_RADIUS + 5);
           }
 
           if (selectedVertex != null) {
@@ -279,7 +280,7 @@ public class ModelMapper {
             parent.stroke(255);
             parent.strokeWeight(2);
             parent.noFill();
-            parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS, UI_CIRCLE_RADIUS);
+            parent.ellipse(projectedPoint.x, projectedPoint.y, UI_CIRCLE_RADIUS + 5, UI_CIRCLE_RADIUS + 5);
           }
 
           parent.image(
