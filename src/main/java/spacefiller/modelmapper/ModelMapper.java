@@ -10,6 +10,8 @@ import processing.opengl.PShader;
 import java.io.*;
 import java.util.HashMap;
 import java.util.Map;
+import java.nio.file.Paths;
+import java.nio.file.Files;
 
 import static processing.core.PConstants.*;
 import static spacefiller.modelmapper.Utils.*;
@@ -50,43 +52,43 @@ public class ModelMapper {
   private int uiPressSpaceCountdown;
 
   public ModelMapper(PApplet parent, PShape model) {
-    // If we share the model with the client, then when the client renders it, they can
-    // update state that will impact our ability to render it. For consistent rendering,
-    // make our own private copy.
-    this.model = Shapes.createShape(parent, model);
-
-    this.parent = parent;
     try {
-      this.parentGraphics = (PGraphics3D) parent.getGraphics();
-    } catch (ClassCastException e) {
-      System.out.println("ModelMapper: Must use P3D rendering mode with ModelMapper library");
-      System.out.println("ModelMapper:   size(P3D, 500, 500)");
+      // If we share the model with the client, then when the client renders it, they can
+      // update state that will impact our ability to render it. For consistent rendering,
+      // make our own private copy.
+      this.model = Shapes.createShape(parent, model);
+
+      this.parent = parent;
+      try {
+        this.parentGraphics = (PGraphics3D) parent.getGraphics();
+      } catch (ClassCastException e) {
+        System.out.println("ModelMapper: Must use P3D rendering mode with ModelMapper library");
+        System.out.println("ModelMapper:   size(P3D, 500, 500)");
+      }
+      this.modelCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
+      this.projectionCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
+      this.mode = Mode.RENDER;
+      this.space = CalibrationSpace.MODEL_SPACE;
+      this.camera = new PeasyCam(parent, modelCanvas, 400);
+      this.pointMapping = new HashMap<>();
+
+      this.parent.registerMethod("draw", this);
+      this.parent.registerMethod("mouseEvent", this);
+      this.parent.registerMethod("keyEvent", this);
+
+      modelRenderShader = parent.loadShader(IO.extractResourceToFile("/model.frag.glsl"));
+      uiModel = parent.loadImage(IO.extractResourceToFile("/ui-model.png"));
+      uiProjection = parent.loadImage(IO.extractResourceToFile("/ui-projection.png"));
+      uiNoCalibration = parent.loadImage(IO.extractResourceToFile("/no-calibration.png"));
+      uiPressSpace = parent.loadImage(IO.extractResourceToFile("/press-space.png"));
+      uiPressSpaceCountdown = 1000;
+
+      loadCalibration();
+      calibrationData = Calibration.calibrate(pointMapping, parent.width, parent.height);
+    } catch (Exception e) {
+      e.printStackTrace();
+      throw e;
     }
-    this.modelCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
-    this.projectionCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
-    this.mode = Mode.RENDER;
-    this.space = CalibrationSpace.MODEL_SPACE;
-    this.camera = new PeasyCam(parent, modelCanvas, 400);
-    this.pointMapping = new HashMap<>();
-
-    this.parent.registerMethod("draw", this);
-    this.parent.registerMethod("mouseEvent", this);
-    this.parent.registerMethod("keyEvent", this);
-
-    modelRenderShader = parent.loadShader(
-        IO.extractResourceToFile("/model.frag.glsl"));
-    uiModel = parent.loadImage(
-        IO.extractResourceToFile("/ui-model.png"));
-    uiProjection = parent.loadImage(
-        IO.extractResourceToFile("/ui-projection.png"));
-    uiNoCalibration = parent.loadImage(
-        IO.extractResourceToFile("/no-calibration.png"));
-    uiPressSpace = parent.loadImage(
-        IO.extractResourceToFile("/press-space.png"));
-    uiPressSpaceCountdown = 1000;
-
-    loadCalibration();
-    calibrationData = Calibration.calibrate(pointMapping, parent.width, parent.height);
   }
 
   public void calibrateMode() {
@@ -132,7 +134,9 @@ public class ModelMapper {
 
   private void saveCalibration() {
     try {
-      FileOutputStream fileOutputStream = new FileOutputStream(parent.dataPath("calibration.ser"));
+      String path = parent.dataPath("calibration.ser");
+      Files.createDirectories(Paths.get(path).getParent());
+      FileOutputStream fileOutputStream = new FileOutputStream(path);
       ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
       objectOutputStream.writeObject(pointMapping);
       objectOutputStream.flush();

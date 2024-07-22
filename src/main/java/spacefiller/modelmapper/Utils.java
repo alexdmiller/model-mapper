@@ -15,13 +15,22 @@ public class Utils {
   }
 
   public static PVector getClosestPointOnShape(PVector point, PShape shape, PGraphics3D graphics) {
-    PVector closest = null;
-    float minDistance = 1000;
-    float selectionRadius = 10;
+    if (shape.getChildCount() > 0) {
+      for (PShape child : shape.getChildren()) {
+        PVector closest = getClosestPointOnShape(point, child, graphics);
+        if (closest != null) {
+          return closest;
+        }
+      }
+    }
 
-    for (PShape child : shape.getChildren()) {
-      for (int i = 0; i < child.getVertexCount(); i++) {
-        PVector vertex = child.getVertex(i);
+    if (shape.getVertexCount() > 0) {
+      PVector closest = null;
+      float minDistance = 1000;
+      float selectionRadius = 10;
+
+      for (int i = 0; i < shape.getVertexCount(); i++) {
+        PVector vertex = shape.getVertex(i);
         PVector projectedVertex = worldToScreen(vertex, graphics);
         float dist = projectedVertex.dist(point);
         if (dist < selectionRadius && projectedVertex.z < minDistance) {
@@ -29,8 +38,11 @@ public class Utils {
           minDistance = projectedVertex.z;
         }
       }
+
+      return closest;
     }
-    return closest;
+
+    return null;
   }
 
 //  public static PVector getClosestPointByMappedPoint(PVector queryPoint) {

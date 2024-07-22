@@ -16,6 +16,11 @@ import static org.opencv.calib3d.Calib3d.Rodrigues;
 import static processing.core.PApplet.radians;
 
 public class Calibration {
+  // TODO: These numbers seem flipped -- shouldn't farDist be positive?
+  // TODO: how to choose these numbers?
+  public static final float DEFAULT_NEAR_DIST = 10f;
+  public static final float DEFAULT_FAR_DIST = -500f;
+
   private static boolean nativeLoaded = false;
 
   private static void loadNative() {
@@ -23,6 +28,18 @@ public class Calibration {
       Loader.load(opencv_java.class);
       nativeLoaded = true;
     }
+  }
+
+  public static CalibrationData calibrate(
+      Map<PVector, PVector> pointMapping,
+      int width,
+      int height) {
+    return calibrate(
+        pointMapping,
+        width,
+        height,
+        DEFAULT_NEAR_DIST,
+        DEFAULT_FAR_DIST);
   }
 
   // Given a mapping of 3d model space points to 2d projection space points, returns the
@@ -33,7 +50,9 @@ public class Calibration {
   public static CalibrationData calibrate(
       Map<PVector, PVector> pointMapping,
       int width,
-      int height) {
+      int height,
+      float nearDist,
+      float farDist) {
     loadNative();
 
     Mat translation;
@@ -124,14 +143,6 @@ public class Calibration {
     double fy = cameraMatrix.get(1, 1)[0];
     double cx = principalPoint.x;
     double cy = principalPoint.y;
-
-
-    // TODO: These numbers seem flipped -- shouldn't farDist be positive?
-    // TODO: how to choose these numbers?
-    float nearDist = 500f;
-    float farDist = -1000f;
-//    float nearDist = 10000f;
-//    float farDist = -10000f;
 
     float left = (float) (nearDist * (-cx) / fx);
     float right = (float) (nearDist * (width - cx) / fx);

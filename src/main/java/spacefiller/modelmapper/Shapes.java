@@ -4,11 +4,7 @@ import processing.core.PApplet;
 import processing.core.PShape;
 import processing.core.PVector;
 
-import static processing.core.PShape.GROUP;
-import static processing.core.PShape.GEOMETRY;
-import static processing.core.PShape.X;
-import static processing.core.PShape.Y;
-import static processing.core.PShape.Z;
+import static processing.core.PShape.*;
 
 
 public class Shapes {
@@ -20,6 +16,8 @@ public class Shapes {
     } else if (src.getFamily() == GEOMETRY) {
       dest = parent.createShape(GEOMETRY);
       copyGeometry(src, dest);
+    } else if (src.getFamily() == PRIMITIVE) {
+      dest = parent.createShape(src.getKind(), src.getParams());
     }
     dest.setName(src.getName());
     return dest;
