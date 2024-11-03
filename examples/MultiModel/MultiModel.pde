@@ -22,22 +22,23 @@
 import spacefiller.modelmapper.ModelMapper;
 
 ModelMapper mapper;
-PShape model;
+PShape model1;
+PShape model2;
 
 void setup() {
   fullScreen(P3D);
-  model = createShape(BOX, 150);
-  mapper = new ModelMapper(this, model);
+  model1 = createShape(BOX, 150);
+  model2 = createShape(BOX, 200);
+  mapper = new ModelMapper(this);
+  mapper.addModel(model1);
+  mapper.addModel(model2);
 }
 
 void draw() {
   background(0);
 
-  // After calibration is complete, all drawing code between the calls
-  // to mapper.begin() and mapper.end() will be transformed.
-  mapper.begin();
+  mapper.begin(model1);
 
-  // Draw some colored lights rotating around the cube to animate the faces
   pointLight(
     0,
     255,
@@ -54,7 +55,27 @@ void draw() {
     cos(-frameCount / 15f) * 300);
 
   // Draw cube itself
-  shape(model);
+  shape(model1);
+  mapper.end();
 
+  mapper.begin(model2);
+
+  pointLight(
+    0,
+    255,
+    255,
+    cos(frameCount / 10f) * 300,
+    sin(frameCount / 10f) * 300,
+    cos(frameCount / 20f) * 300);
+  pointLight(
+    255,
+    255,
+    0,
+    cos(-frameCount / 20) * 300,
+    sin(-frameCount / 20f) * 300,
+    cos(-frameCount / 15f) * 300);
+
+  // Draw cube itself
+  shape(model2);
   mapper.end();
 }
