@@ -6,7 +6,7 @@ import processing.opengl.PGraphics3D;
 
 import java.util.Map;
 
-public class Utils {
+public class GeometryUtils {
   public static PVector worldToScreen(PVector vertex, PGraphics3D graphics) {
     float screenX = graphics.screenX(vertex.x, vertex.y, vertex.z);
     float screenY = graphics.screenY(vertex.x, vertex.y, vertex.z);

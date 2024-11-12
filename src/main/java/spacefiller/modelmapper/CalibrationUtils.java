@@ -8,14 +8,13 @@ import processing.core.PMatrix3D;
 import processing.core.PVector;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 import static org.opencv.calib3d.Calib3d.Rodrigues;
 import static processing.core.PApplet.radians;
 
-public class Calibration {
+public class CalibrationUtils {
   // TODO: These numbers seem flipped -- shouldn't farDist be positive?
   // TODO: how to choose these numbers?
   public static final float DEFAULT_NEAR_DIST = 10f;
@@ -30,7 +29,7 @@ public class Calibration {
     }
   }
 
-  public static CalibrationData calibrate(
+  public static GraphicsTransform calibrate(
       Map<PVector, PVector> pointMapping,
       int width,
       int height) {
@@ -47,7 +46,7 @@ public class Calibration {
   // If the point mapping contains less than 6 points, returns an empty calibration.
   // Although a calibration is mathematically possible with 6 points, empirically I have
   // found that more points produces a better mapping.
-  public static CalibrationData calibrate(
+  public static GraphicsTransform calibrate(
       Map<PVector, PVector> pointMapping,
       int width,
       int height,
@@ -59,7 +58,7 @@ public class Calibration {
     Mat rotation;
 
     if (pointMapping.size() < 6) {
-      return CalibrationData.empty();
+      return GraphicsTransform.empty();
     }
 
     // Prepare inputs to pass into OpenCV calibrateCamera function
@@ -170,7 +169,7 @@ public class Calibration {
     projectionMatrix.apply(frustrum);
 
     PMatrix3D modelViewMatrix = makeModelMatrix(rotation, translation);
-    return new CalibrationData(projectionMatrix, modelViewMatrix);
+    return new GraphicsTransform(projectionMatrix, modelViewMatrix);
   }
 
   // Helper function that takes the rotation and translation vector produced by

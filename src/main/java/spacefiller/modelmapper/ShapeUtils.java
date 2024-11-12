@@ -7,7 +7,7 @@ import processing.core.PVector;
 import static processing.core.PShape.*;
 
 
-public class Shapes {
+public class ShapeUtils {
   static public PShape createShape(PApplet parent, PShape src) {
     PShape dest = null;
     if (src.getFamily() == GROUP) {

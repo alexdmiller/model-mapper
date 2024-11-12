@@ -7,14 +7,11 @@ import processing.event.MouseEvent;
 import processing.opengl.PGraphics3D;
 import processing.opengl.PShader;
 
-import java.io.*;
-import java.util.HashMap;
-import java.util.Map;
-import java.nio.file.Paths;
-import java.nio.file.Files;
+import java.util.ArrayList;
+import java.util.List;
 
 import static processing.core.PConstants.*;
-import static spacefiller.modelmapper.Utils.*;
+import static spacefiller.modelmapper.GeometryUtils.*;
 
 public class ModelMapper {
   private static final float UI_CIRCLE_RADIUS = 10;
@@ -23,8 +20,8 @@ public class ModelMapper {
     CALIBRATE, RENDER
   }
 
-  private enum CalibrationSpace {
-    MODEL_SPACE, PIXEL_SPACE
+  private enum CalibrateMode {
+    MODEL, PROJECTION
   }
 
   private PApplet parent;
@@ -33,14 +30,15 @@ public class ModelMapper {
   private PGraphics3D modelCanvas;
   private PGraphics3D projectionCanvas;
 
-  private PShape model;
+  private List<Model> models;
+  private int currentModelIndex = -1;
+  private int currentMappingIndex = -1;
+
   private Mode mode;
-  private CalibrationSpace space;
+  private CalibrateMode calibrateMode;
   private PeasyCam camera;
 
   private PVector selectedVertex;
-  private Map<PVector, PVector> pointMapping;
-  private CalibrationData calibrationData;
 
   PShader modelRenderShader;
 
@@ -51,13 +49,10 @@ public class ModelMapper {
   PImage uiPressSpace;
   private int uiPressSpaceCountdown;
 
-  public ModelMapper(PApplet parent, PShape model) {
-    try {
-      // If we share the model with the client, then when the client renders it, they can
-      // update state that will impact our ability to render it. For consistent rendering,
-      // make our own private copy.
-      this.model = Shapes.createShape(parent, model);
+  // TODO: add constructor that accepts a model
 
+  public ModelMapper(PApplet parent) {
+    try {
       this.parent = parent;
       try {
         this.parentGraphics = (PGraphics3D) parent.getGraphics();
@@ -68,26 +63,49 @@ public class ModelMapper {
       this.modelCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
       this.projectionCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
       this.mode = Mode.RENDER;
-      this.space = CalibrationSpace.MODEL_SPACE;
+      this.calibrateMode = CalibrateMode.MODEL;
       this.camera = new PeasyCam(parent, modelCanvas, 400);
-      this.pointMapping = new HashMap<>();
 
       this.parent.registerMethod("draw", this);
       this.parent.registerMethod("mouseEvent", this);
       this.parent.registerMethod("keyEvent", this);
 
-      modelRenderShader = parent.loadShader(IO.extractResourceToFile("/model.frag.glsl"));
-      uiModel = parent.loadImage(IO.extractResourceToFile("/ui-model.png"));
-      uiProjection = parent.loadImage(IO.extractResourceToFile("/ui-projection.png"));
-      uiNoCalibration = parent.loadImage(IO.extractResourceToFile("/no-calibration.png"));
-      uiPressSpace = parent.loadImage(IO.extractResourceToFile("/press-space.png"));
+      modelRenderShader = parent.loadShader(IOUtils.extractResourceToFile("/model.frag.glsl"));
+      uiModel = parent.loadImage(IOUtils.extractResourceToFile("/ui-model.png"));
+      uiProjection = parent.loadImage(IOUtils.extractResourceToFile("/ui-projection.png"));
+      uiNoCalibration = parent.loadImage(IOUtils.extractResourceToFile("/no-calibration.png"));
+      uiPressSpace = parent.loadImage(IOUtils.extractResourceToFile("/press-space.png"));
       uiPressSpaceCountdown = 1000;
 
-      loadCalibration();
-      calibrationData = Calibration.calibrate(pointMapping, parent.width, parent.height);
+      this.models = new ArrayList<>();
+//      loadCalibration();
+//      calibrationData = CalibrationUtils.calibrate(pointMapping, parent.width, parent.height);
     } catch (Exception e) {
       e.printStackTrace();
       throw e;
+    }
+  }
+
+  public void addModel(PShape shape) {
+    // If we share the model with the client, then when the client renders it, they can
+    // update state that will impact our ability to render it. For consistent rendering,
+    // make our own private copy.
+    PShape shapeCopy = ShapeUtils.createShape(parent, shape);
+    Model model = new Model(parent, shapeCopy);
+    this.models.add(model);
+  }
+
+  public Model getCurrentModel() {
+    if (currentModelIndex >= 0) {
+      return this.models.get(currentModelIndex);
+    } else {
+      return null;
+    }
+  }
+
+  public Mapping getCurrentMapping() {
+    if (currentModelIndex >= 0 && currentMappingIndex >= 0) {
+      return this.models.get(currentMappingIndex).getMapping(currentMappingIndex);
     }
   }
 
@@ -99,26 +117,7 @@ public class ModelMapper {
     this.mode = Mode.RENDER;
   }
 
-  public void begin() {
-    parentGraphics.background(0);
 
-    if (calibrationData.isReady()) {
-      parentGraphics.pushMatrix();
-      parentGraphics.pushProjection();
-
-      parentGraphics.resetMatrix();
-      parentGraphics.setProjection(calibrationData.projectionMatrix);
-      parentGraphics.camera(0, 0, 0, 0, 0, 1, 0, -1, 0);
-      parentGraphics.applyMatrix(calibrationData.modelViewMatrix);
-    }
-  }
-
-  public void end() {
-    if (calibrationData.isReady()) {
-      parentGraphics.popMatrix();
-      parentGraphics.popProjection();
-    }
-  }
 
   private void drawModel(PShape model, PGraphics canvas) {
     canvas.resetShader();
@@ -132,38 +131,59 @@ public class ModelMapper {
     canvas.endDraw();
   }
 
-  private void saveCalibration() {
-    try {
-      String path = parent.dataPath("calibration.ser");
-      Files.createDirectories(Paths.get(path).getParent());
-      FileOutputStream fileOutputStream = new FileOutputStream(path);
-      ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
-      objectOutputStream.writeObject(pointMapping);
-      objectOutputStream.flush();
-      objectOutputStream.close();
-    } catch (IOException e) {
-      e.printStackTrace();
+  public Iterable<Model> getModels() {
+    return models;
+  }
+
+  /*
+
+  for (Model m : mapper.getModels()) {
+    for (Mapping mapping : m.getMappings()) {
+      mapping.begin();
+      // Draw model
+      mapping.end();
     }
   }
 
-  private void loadCalibration() {
-    pointMapping = new HashMap<>();
-    try {
-      FileInputStream fileInputStream = new FileInputStream(parent.dataPath("calibration.ser"));
-      ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
-      pointMapping = (Map<PVector, PVector>) objectInputStream.readObject();
-      objectInputStream.close();
-    } catch (IOException | ClassNotFoundException e) {
-      System.out.println("ModelMapper: Attempted to load calibration data, but it does not exist yet.");
-      System.out.println("ModelMapper: If you have not yet calibrated your projection, this is normal!");
-    }
-  }
+
+
+  */
+
+//  private void saveCalibration() {
+//    try {
+//      String path = parent.dataPath("calibration.ser");
+//      Files.createDirectories(Paths.get(path).getParent());
+//      FileOutputStream fileOutputStream = new FileOutputStream(path);
+//      ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
+//      objectOutputStream.writeObject(pointMapping);
+//      objectOutputStream.flush();
+//      objectOutputStream.close();
+//    } catch (IOException e) {
+//      e.printStackTrace();
+//    }
+//  }
+//
+//  private void loadCalibration() {
+//    pointMapping = new HashMap<>();
+//    try {
+//      FileInputStream fileInputStream = new FileInputStream(parent.dataPath("calibration.ser"));
+//      ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
+//      pointMapping = (Map<PVector, PVector>) objectInputStream.readObject();
+//      objectInputStream.close();
+//    } catch (IOException | ClassNotFoundException e) {
+//      System.out.println("ModelMapper: Attempted to load calibration data, but it does not exist yet.");
+//      System.out.println("ModelMapper: If you have not yet calibrated your projection, this is normal!");
+//    }
+//  }
 
   /**
    * Processing hooks
    */
 
   public void draw() {
+    Model model = getCurrentModel();
+    Mapping mapping = getCurrentMapping();
+
     try {
       parent.resetShader();
       parent.noLights();
@@ -173,7 +193,7 @@ public class ModelMapper {
         parent.noCursor();
         parent.background(0);
 
-        if (space == CalibrationSpace.MODEL_SPACE) {
+        if (calibrateMode == CalibrateMode.MODEL) {
           parent.background(0);
 
           // Only turn peasycam on when in calibrate mode and in model space; otherwise use
@@ -185,7 +205,7 @@ public class ModelMapper {
           modelCanvas.clear();
           modelCanvas.scale(1, -1, 1);
 
-          drawModel(model, modelCanvas);
+          model.draw(modelCanvas);
 
           parent.resetShader();
 
@@ -203,9 +223,9 @@ public class ModelMapper {
           parent.vertex(0, parent.height, 0, 1);
           parent.endShape();
 
-          PVector closestPoint = getClosestPointOnShape(mouse, model, modelCanvas);
+          PVector closestPoint = model.getClosestPointTo(mouse, modelCanvas);
 
-          for (PVector modelPoint : pointMapping.keySet()) {
+          for (PVector modelPoint : mapping.getMappedPoints()) {
             PVector projectedPoint = worldToScreen(modelPoint, modelCanvas);
             parent.noStroke();
             parent.fill(255, 200);
@@ -231,21 +251,12 @@ public class ModelMapper {
               parent.height - uiModel.height / 2f - 20,
               uiModel.width / 2f,
               uiModel.height / 2f);
-        } else if (space == CalibrationSpace.PIXEL_SPACE) {
+        } else if (calibrateMode == CalibrateMode.PROJECTION) {
           camera.setActive(false);
-
-          if (calibrationData.isReady()) {
-            projectionCanvas.beginDraw();
-            projectionCanvas.clear();
-
-            projectionCanvas.resetMatrix();
-            projectionCanvas.setProjection(calibrationData.projectionMatrix);
-            projectionCanvas.camera(0, 0, 0, 0, 0, 1, 0, -1, 0);
-            projectionCanvas.applyMatrix(calibrationData.modelViewMatrix);
-
-            drawModel(model, projectionCanvas);
-
-            projectionCanvas.endDraw();
+          if (mapping.isReady()) {
+            mapping.begin(projectionCanvas);
+            model.draw(projectionCanvas);
+            mapping.end(projectionCanvas);
           } else {
             parent.image(
                 uiNoCalibration,
@@ -259,8 +270,8 @@ public class ModelMapper {
 
           parent.image(projectionCanvas, 0, 0);
 
-          for (PVector modelPoint : pointMapping.keySet()) {
-            PVector projectedPoint = pointMapping.get(modelPoint);
+          for (PVector modelPoint : mapping.getMappedPoints()) {
+            PVector projectedPoint = mapping.get(modelPoint);
             parent.strokeWeight(5);
 
             parent.noStroke();
@@ -274,9 +285,10 @@ public class ModelMapper {
             }
           }
 
-          PVector closestPoint = getClosestPointByMappedPoint(mouse, pointMapping);
+
+          PVector closestPoint = mapping.getClosestMappedPointTo(mouse);
           if (closestPoint != null) {
-            PVector projectedPoint = pointMapping.get(closestPoint);
+            PVector projectedPoint = mapping.get(closestPoint);
             parent.stroke(255);
             parent.strokeWeight(2);
             parent.noFill();
@@ -343,11 +355,11 @@ public class ModelMapper {
       return;
     }
 
-    if (space == CalibrationSpace.MODEL_SPACE) {
+    if (calibrateMode == CalibrateMode.MODEL) {
       if (event.getAction() == MouseEvent.CLICK) {
         selectedVertex = getClosestPointOnShape(mouse, model, modelCanvas);
       }
-    } else if (space == CalibrationSpace.PIXEL_SPACE) {
+    } else if (calibrateMode == CalibrateMode.PROJECTION) {
       switch (event.getAction()) {
         case MouseEvent.PRESS:
           PVector newSelection = getClosestPointByMappedPoint(mouse, pointMapping);
@@ -359,7 +371,7 @@ public class ModelMapper {
         case MouseEvent.CLICK:
           if (selectedVertex != null) {
             pointMapping.put(selectedVertex, mouse);
-            calibrationData = Calibration.calibrate(pointMapping, parent.width, parent.height);
+            calibrationData = CalibrationUtils.calibrate(pointMapping, parent.width, parent.height);
             saveCalibration();
           }
           break;
@@ -373,9 +385,9 @@ public class ModelMapper {
         uiPressSpaceCountdown = 300;
         mode = (mode == Mode.CALIBRATE) ? Mode.RENDER : Mode.CALIBRATE;
       } else if (event.getKeyCode() == 9) { // tab
-        space = (space == CalibrationSpace.MODEL_SPACE)
-            ? CalibrationSpace.PIXEL_SPACE
-            : CalibrationSpace.MODEL_SPACE;
+        calibrateMode = (calibrateMode == CalibrateMode.MODEL)
+            ? CalibrateMode.PROJECTION
+            : CalibrateMode.MODEL;
       }
     }
   }

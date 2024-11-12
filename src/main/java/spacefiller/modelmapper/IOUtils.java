@@ -9,10 +9,9 @@ import java.util.stream.Stream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.Files;
 
-public class IO {
+public class IOUtils {
   public static String[] getFileContents(String filename) {
     try {
       InputStream resourceAsStream = ModelMapper.class.getResourceAsStream("/model.frag.glsl");
