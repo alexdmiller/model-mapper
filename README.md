@@ -97,6 +97,10 @@ This template is based on the [Deep Vision Library](https://github.com/cansik/de
 - Why doesn't rendering multiple models work right now?
 - When switching between models, need to clear selected vertex
 - Each mapping should have a separate Peasy camera state
+- lights test
+- number faces for easier orientation?
+- experiment with nicer/more concise interface for drawing
+- saving!
 
 ## Building & running
 

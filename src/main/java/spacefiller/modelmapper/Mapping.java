@@ -59,8 +59,6 @@ public class Mapping {
   }
 
   public void begin(PGraphics3D graphics) {
-    graphics.background(0);
-
     if (isReady()) {
       graphics.pushMatrix();
       graphics.pushProjection();
