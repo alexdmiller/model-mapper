@@ -3,16 +3,18 @@ package spacefiller.modelmapper;
 import processing.core.PVector;
 import processing.opengl.PGraphics3D;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
 import static spacefiller.modelmapper.GeometryUtils.getClosestPointByMappedPoint;
 
-public class Mapping {
-  private PGraphics3D parentGraphics;
+public class Mapping implements Serializable {
+  private transient PGraphics3D parentGraphics;
+  private transient GraphicsTransform transform;
+
   private Map<PVector, PVector> points;
-  private GraphicsTransform transform;
 
   public Mapping(PGraphics3D parentGraphics) {
     this.parentGraphics = parentGraphics;
@@ -22,6 +24,10 @@ public class Mapping {
 
   public void put(PVector from, PVector to) {
     this.points.put(from, to);
+    computeTransform();
+  }
+
+  public void computeTransform() {
     transform = CalibrationUtils.calibrate(
         this.points, parentGraphics.width, parentGraphics.height);
   }
@@ -75,5 +81,11 @@ public class Mapping {
       graphics.popMatrix();
       graphics.popProjection();
     }
+  }
+
+  public void setFromOtherMapping(Mapping otherMapping) {
+    // TODO: need to copy points?
+    this.points = otherMapping.points;
+    computeTransform();
   }
 }

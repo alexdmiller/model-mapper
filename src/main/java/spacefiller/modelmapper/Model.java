@@ -5,19 +5,23 @@ import processing.core.PShape;
 import processing.core.PVector;
 import processing.opengl.PGraphics3D;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
 import static spacefiller.modelmapper.GeometryUtils.getClosestPointOnShape;
 
-public class Model {
-  private PApplet parent;
-  private PGraphics3D parentGraphics;
-  private PShape shape;
-  private PShape internalCopy;
+public class Model implements Serializable {
+  private transient PApplet parent;
+  private transient PGraphics3D parentGraphics;
+  private transient PShape shape;
+  private transient PShape internalCopy;
+
+  private String name;
   private List<Mapping> mappings;
 
-  public Model(PApplet parent, PShape shape) {
+  public Model(String name, PApplet parent, PShape shape) {
+    this.name = name;
     this.parent = parent;
 
     try {
@@ -39,6 +43,15 @@ public class Model {
 
     // Each model starts with one mapping
     createMapping();
+  }
+
+  protected void setMappingsFromModel(Model from) {
+    mappings = new ArrayList<>();
+    for (Mapping otherMapping : from.getMappings()) {
+      Mapping m = new Mapping(this.parentGraphics);
+      m.setFromOtherMapping(otherMapping);
+      mappings.add(m);
+    }
   }
 
   public void createMapping() {
@@ -76,5 +89,9 @@ public class Model {
 
   public PVector getClosestPointTo(PVector mouse, PGraphics3D modelCanvas) {
     return getClosestPointOnShape(mouse, shape, modelCanvas);
+  }
+
+  public String getName() {
+    return name;
   }
 }

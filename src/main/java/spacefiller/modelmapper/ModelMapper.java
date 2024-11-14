@@ -7,6 +7,9 @@ import processing.event.MouseEvent;
 import processing.opengl.PGraphics3D;
 import processing.opengl.PShader;
 
+import java.io.*;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,6 +34,7 @@ public class ModelMapper {
   private PGraphics3D projectionCanvas;
 
   private List<Model> models;
+  private List<Model> previouslySavedModels;
   private int currentModelIndex = -1;
   private int currentMappingIndex = -1;
 
@@ -78,7 +82,8 @@ public class ModelMapper {
       uiPressSpaceCountdown = 1000;
 
       this.models = new ArrayList<>();
-//      loadCalibration();
+      loadCalibration();
+
 //      calibrationData = CalibrationUtils.calibrate(pointMapping, parent.width, parent.height);
     } catch (Exception e) {
       e.printStackTrace();
@@ -86,12 +91,47 @@ public class ModelMapper {
     }
   }
 
+  public Model getModel(String name) {
+    for (Model m : models) {
+      if (m.getName().equals(name)) {
+        return m;
+      }
+    }
+    return null;
+  }
+
+  public Model getPreviouslySavedModel(String name) {
+    for (Model m : previouslySavedModels) {
+      if (m.getName().equals(name)) {
+        return m;
+      }
+    }
+    return null;
+  }
+
   public void addModel(PShape shape) {
+    addModel("default", shape);
+  }
+
+  public void addModel(String name, PShape shape) {
+    if (getModel(name) != null) {
+      System.out.println("ModelMapper: Could not add model with name '" + name + "'.");
+      System.out.println("ModelMapper: The model already exists, and model names must be unique.");
+      return;
+    }
+
     // If we share the model with the client, then when the client renders it, they can
     // update state that will impact our ability to render it. For consistent rendering,
     // make our own private copy.
     PShape shapeCopy = ShapeUtils.createShape(parent, shape);
-    Model model = new Model(parent, shapeCopy);
+    Model model = new Model(name, parent, shapeCopy);
+
+    Model previouslySaved = getPreviouslySavedModel(name);
+    if (previouslySaved != null) {
+      System.out.println("ModelMapper: Found a previously saved model for " + name);
+      model.setMappingsFromModel(previouslySaved);
+    }
+
     this.models.add(model);
 
     currentModelIndex = models.size() - 1;
@@ -138,43 +178,32 @@ public class ModelMapper {
     return models;
   }
 
-  /*
-
-  for (Model m : mapper.getModels()) {
-    for (Mapping mapping : m.getMappings()) {
-      mapping.begin();
-      // Draw model
-      mapping.end();
+  private void saveCalibration() {
+    try {
+      String path = parent.dataPath("calibration.ser");
+      Files.createDirectories(Paths.get(path).getParent());
+      FileOutputStream fileOutputStream = new FileOutputStream(path);
+      ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
+      objectOutputStream.writeObject(models);
+      objectOutputStream.flush();
+      objectOutputStream.close();
+    } catch (IOException e) {
+      e.printStackTrace();
     }
   }
-  */
 
-//  private void saveCalibration() {
-//    try {
-//      String path = parent.dataPath("calibration.ser");
-//      Files.createDirectories(Paths.get(path).getParent());
-//      FileOutputStream fileOutputStream = new FileOutputStream(path);
-//      ObjectOutputStream objectOutputStream = new ObjectOutputStream(fileOutputStream);
-//      objectOutputStream.writeObject(pointMapping);
-//      objectOutputStream.flush();
-//      objectOutputStream.close();
-//    } catch (IOException e) {
-//      e.printStackTrace();
-//    }
-//  }
-//
-//  private void loadCalibration() {
-//    pointMapping = new HashMap<>();
-//    try {
-//      FileInputStream fileInputStream = new FileInputStream(parent.dataPath("calibration.ser"));
-//      ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
-//      pointMapping = (Map<PVector, PVector>) objectInputStream.readObject();
-//      objectInputStream.close();
-//    } catch (IOException | ClassNotFoundException e) {
-//      System.out.println("ModelMapper: Attempted to load calibration data, but it does not exist yet.");
-//      System.out.println("ModelMapper: If you have not yet calibrated your projection, this is normal!");
-//    }
-//  }
+  private void loadCalibration() {
+    previouslySavedModels = new ArrayList<>();
+    try {
+      FileInputStream fileInputStream = new FileInputStream(parent.dataPath("calibration.ser"));
+      ObjectInputStream objectInputStream = new ObjectInputStream(fileInputStream);
+      previouslySavedModels = (List<Model>) objectInputStream.readObject();
+      objectInputStream.close();
+    } catch (IOException | ClassNotFoundException e) {
+      System.out.println("ModelMapper: Attempted to load calibration data, but it does not exist yet.");
+      System.out.println("ModelMapper: If you have not yet calibrated your projection, this is normal!");
+    }
+  }
 
   /**
    * Processing hooks
@@ -399,7 +428,7 @@ public class ModelMapper {
         case MouseEvent.CLICK:
           if (selectedVertex != null) {
             mapping.put(selectedVertex, mouse);
-//            saveCalibration();
+            saveCalibration();
           }
           break;
       }
