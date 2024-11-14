@@ -2,6 +2,8 @@ package spacefiller.modelmapper;
 
 import processing.core.PVector;
 import processing.opengl.PGraphics3D;
+import spacefiller.peasy.CameraState;
+import spacefiller.peasy.PeasyCam;
 
 import java.io.Serializable;
 import java.util.HashMap;
@@ -13,6 +15,7 @@ import static spacefiller.modelmapper.GeometryUtils.getClosestPointByMappedPoint
 public class Mapping implements Serializable {
   private transient PGraphics3D parentGraphics;
   private transient GraphicsTransform transform;
+  private transient CameraState cameraState;
 
   private Map<PVector, PVector> points;
 
@@ -87,5 +90,13 @@ public class Mapping implements Serializable {
     // TODO: need to copy points?
     this.points = otherMapping.points;
     computeTransform();
+  }
+
+  public void setCameraState(CameraState state) {
+    this.cameraState = state;
+  }
+
+  public CameraState getCameraState() {
+    return this.cameraState;
   }
 }

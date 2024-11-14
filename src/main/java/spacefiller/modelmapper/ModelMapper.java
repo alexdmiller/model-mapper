@@ -1,6 +1,7 @@
 package spacefiller.modelmapper;
 
 import processing.core.*;
+import spacefiller.peasy.CameraState;
 import spacefiller.peasy.PeasyCam;
 import processing.event.KeyEvent;
 import processing.event.MouseEvent;
@@ -247,7 +248,6 @@ public class ModelMapper {
           // Only turn peasycam on when in calibrate mode and in model space; otherwise use
           // calibrated camera.
           camera.setActive(true);
-          camera.feed();
 
           modelCanvas.beginDraw();
           modelCanvas.clear();
@@ -417,6 +417,8 @@ public class ModelMapper {
       if (event.getAction() == MouseEvent.CLICK) {
         selectedVertex = model.getClosestPointTo(mouse, modelCanvas);
       }
+
+      getCurrentMapping().setCameraState(camera.getState());
     } else if (calibrateMode == CalibrateMode.PROJECTION) {
       switch (event.getAction()) {
         case MouseEvent.PRESS:
@@ -436,29 +438,52 @@ public class ModelMapper {
     }
   }
 
+  private void resetCamera() {
+    CameraState state = getCurrentMapping().getCameraState();
+    if (state != null) {
+      camera.setState(state);
+    } else {
+      camera.reset();
+    }
+  }
+
   public void keyEvent(KeyEvent event) {
     if (event.getAction() == KeyEvent.PRESS) {
       if (event.getKeyCode() == 32) { // space
         uiPressSpaceCountdown = 300;
         mode = (mode == Mode.CALIBRATE) ? Mode.RENDER : Mode.CALIBRATE;
+        resetCamera();
       } else if (event.getKeyCode() == 9) { // tab
         calibrateMode = (calibrateMode == CalibrateMode.MODEL)
             ? CalibrateMode.PROJECTION
             : CalibrateMode.MODEL;
+        resetCamera();
       } else if (event.getKeyCode() == 37) { // left
         currentModelIndex = (currentModelIndex + 1) % models.size();
+        currentMappingIndex = 0;
+        selectedVertex = null;
+        resetCamera();
       } else if (event.getKeyCode() == 39) { // right
         currentModelIndex = ((currentModelIndex - 1) + models.size()) % models.size();
+        currentMappingIndex = 0;
+        selectedVertex = null;
+        resetCamera();
       } else if (event.getKeyCode() == 38) { // up
         int totalMappings = getCurrentModel().getNumMappings();
         currentMappingIndex = (currentMappingIndex + 1) % totalMappings;
+        selectedVertex = null;
+        resetCamera();
       } else if (event.getKeyCode() == 40) { // down
         int totalMappings = getCurrentModel().getNumMappings();
         currentMappingIndex = ((currentMappingIndex - 1) + totalMappings) % totalMappings;
+        selectedVertex = null;
+        resetCamera();
       } else if (event.getKey() == 'c') {
         Model current = getCurrentModel();
         current.createMapping();
         currentMappingIndex = current.getNumMappings() - 1;
+        selectedVertex = null;
+        resetCamera();
       }
     }
   }
