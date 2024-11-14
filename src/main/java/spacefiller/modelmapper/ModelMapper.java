@@ -222,6 +222,7 @@ public class ModelMapper {
     parentGraphics.text("Calibrate mode: " + calibrateMode + " (press TAB to change)", 10, 40);
     parentGraphics.text("Model: " + currentModelIndex + " (press LEFT/RIGHT to change)", 10, 60);
     parentGraphics.text("Mapping: " + currentMappingIndex + " (press UP/DOWN to change)", 10, 80);
+    parentGraphics.text("Press C to create new mapping", 10, 100);
 
     parentGraphics.hint(ENABLE_DEPTH_TEST);
   }
@@ -454,6 +455,10 @@ public class ModelMapper {
       } else if (event.getKeyCode() == 40) { // down
         int totalMappings = getCurrentModel().getNumMappings();
         currentMappingIndex = ((currentMappingIndex - 1) + totalMappings) % totalMappings;
+      } else if (event.getKey() == 'c') {
+        Model current = getCurrentModel();
+        current.createMapping();
+        currentMappingIndex = current.getNumMappings() - 1;
       }
     }
   }
