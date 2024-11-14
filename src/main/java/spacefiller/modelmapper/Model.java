@@ -8,13 +8,13 @@ import processing.opengl.PGraphics3D;
 import java.util.ArrayList;
 import java.util.List;
 
-import static spacefiller.modelmapper.GeometryUtils.getClosestPointByMappedPoint;
 import static spacefiller.modelmapper.GeometryUtils.getClosestPointOnShape;
 
 public class Model {
   private PApplet parent;
   private PGraphics3D parentGraphics;
   private PShape shape;
+  private PShape internalCopy;
   private List<Mapping> mappings;
 
   public Model(PApplet parent, PShape shape) {
@@ -27,10 +27,14 @@ public class Model {
       System.out.println("ModelMapper:   size(500, 500, P3D)");
     }
 
-    // If we share the model with the client, then when the client renders it, they can
-    // update state that will impact our ability to render it. For consistent rendering,
-    // make our own private copy.
+    // Make a clean copy of the shape so that client modifications don't trickle down
+    // into this shape.
     this.shape = ShapeUtils.createShape(parent, shape);
+
+    // For some reason, drawing `this.shape` changes its state such that the user can no
+    // longer call shape(...) on it. We draw a debug copy instead to keep it isolated.
+    this.internalCopy = ShapeUtils.createShape(parent, shape);
+
     this.mappings = new ArrayList<>();
 
     // Each model starts with one mapping
@@ -50,16 +54,23 @@ public class Model {
     return mappings.get(index);
   }
 
+  public int getNumMappings() {
+    return mappings.size();
+  }
+
+  public PShape getShape() {
+    return shape;
+  }
+
   public void draw(PGraphics3D canvas) {
     canvas.resetShader();
 
-    this.shape.disableStyle();
+    this.internalCopy.disableStyle();
 
     canvas.fill(0);
     canvas.stroke(255);
     canvas.strokeWeight(2);
-    canvas.shape(this.shape);
-    canvas.endDraw();
+    canvas.shape(this.internalCopy);
   }
 
 

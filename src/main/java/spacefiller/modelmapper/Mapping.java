@@ -17,6 +17,7 @@ public class Mapping {
   public Mapping(PGraphics3D parentGraphics) {
     this.parentGraphics = parentGraphics;
     this.points = new HashMap<>();
+    this.transform = new GraphicsTransform();
   }
 
   public void put(PVector from, PVector to) {

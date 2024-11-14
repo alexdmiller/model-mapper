@@ -93,6 +93,9 @@ public class ModelMapper {
     PShape shapeCopy = ShapeUtils.createShape(parent, shape);
     Model model = new Model(parent, shapeCopy);
     this.models.add(model);
+
+    currentModelIndex = models.size() - 1;
+    currentMappingIndex = 0;
   }
 
   public Model getCurrentModel() {
@@ -105,7 +108,9 @@ public class ModelMapper {
 
   public Mapping getCurrentMapping() {
     if (currentModelIndex >= 0 && currentMappingIndex >= 0) {
-      return this.models.get(currentMappingIndex).getMapping(currentMappingIndex);
+      return this.models.get(currentModelIndex).getMapping(currentMappingIndex);
+    } else {
+      return null;
     }
   }
 
@@ -116,8 +121,6 @@ public class ModelMapper {
   public void renderMode() {
     this.mode = Mode.RENDER;
   }
-
-
 
   private void drawModel(PShape model, PGraphics canvas) {
     canvas.resetShader();
@@ -144,9 +147,6 @@ public class ModelMapper {
       mapping.end();
     }
   }
-
-
-
   */
 
 //  private void saveCalibration() {
@@ -180,6 +180,24 @@ public class ModelMapper {
    * Processing hooks
    */
 
+  public void drawDebugInfo() {
+    parentGraphics.hint(DISABLE_DEPTH_TEST);
+
+    parentGraphics.fill(0);
+    parentGraphics.stroke(255);
+    parentGraphics.rectMode(CORNER);
+    parentGraphics.rect(0, 0, 300, 120);
+
+    parentGraphics.fill(255);
+    parentGraphics.text("Mode: " + mode + " (press SPACE to change)", 10, 20);
+    parentGraphics.text("Calibrate mode: " + calibrateMode + " (press TAB to change)", 10, 40);
+    parentGraphics.text("Model: " + currentModelIndex + " (press LEFT/RIGHT to change)", 10, 60);
+    parentGraphics.text("Mapping: " + currentMappingIndex + " (press UP/DOWN to change)", 10, 80);
+
+    parentGraphics.hint(ENABLE_DEPTH_TEST);
+  }
+
+
   public void draw() {
     Model model = getCurrentModel();
     Mapping mapping = getCurrentMapping();
@@ -206,6 +224,8 @@ public class ModelMapper {
           modelCanvas.scale(1, -1, 1);
 
           model.draw(modelCanvas);
+
+          modelCanvas.endDraw();
 
           parent.resetShader();
 
@@ -334,6 +354,11 @@ public class ModelMapper {
       e.printStackTrace();
       throw e;
     }
+
+    parentGraphics.push();
+    parentGraphics.translate(20, 20);
+    drawDebugInfo();
+    parentGraphics.pop();
   }
 
   private void drawCrossHairs(float x, float y, int color) {
@@ -348,6 +373,9 @@ public class ModelMapper {
   }
 
   public void mouseEvent(MouseEvent event) {
+    Model model = getCurrentModel();
+    Mapping mapping = getCurrentMapping();
+
     PVector mouse = new PVector(event.getX(), event.getY());
 
     if (mode != Mode.CALIBRATE) {
@@ -357,12 +385,12 @@ public class ModelMapper {
 
     if (calibrateMode == CalibrateMode.MODEL) {
       if (event.getAction() == MouseEvent.CLICK) {
-        selectedVertex = getClosestPointOnShape(mouse, model, modelCanvas);
+        selectedVertex = model.getClosestPointTo(mouse, modelCanvas);
       }
     } else if (calibrateMode == CalibrateMode.PROJECTION) {
       switch (event.getAction()) {
         case MouseEvent.PRESS:
-          PVector newSelection = getClosestPointByMappedPoint(mouse, pointMapping);
+          PVector newSelection = mapping.getClosestMappedPointTo(mouse);
           if (newSelection != null) {
             selectedVertex = newSelection;
           }
@@ -370,9 +398,8 @@ public class ModelMapper {
         case MouseEvent.DRAG:
         case MouseEvent.CLICK:
           if (selectedVertex != null) {
-            pointMapping.put(selectedVertex, mouse);
-            calibrationData = CalibrationUtils.calibrate(pointMapping, parent.width, parent.height);
-            saveCalibration();
+            mapping.put(selectedVertex, mouse);
+//            saveCalibration();
           }
           break;
       }
@@ -388,6 +415,16 @@ public class ModelMapper {
         calibrateMode = (calibrateMode == CalibrateMode.MODEL)
             ? CalibrateMode.PROJECTION
             : CalibrateMode.MODEL;
+      } else if (event.getKeyCode() == 37) { // left
+        currentModelIndex = (currentModelIndex + 1) % models.size();
+      } else if (event.getKeyCode() == 39) { // right
+        currentModelIndex = ((currentModelIndex - 1) + models.size()) % models.size();
+      } else if (event.getKeyCode() == 38) { // up
+        int totalMappings = getCurrentModel().getNumMappings();
+        currentMappingIndex = (currentMappingIndex + 1) % totalMappings;
+      } else if (event.getKeyCode() == 40) { // down
+        int totalMappings = getCurrentModel().getNumMappings();
+        currentMappingIndex = ((currentMappingIndex - 1) + totalMappings) % totalMappings;
       }
     }
   }
