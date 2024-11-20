@@ -77,12 +77,7 @@ public class Model implements Serializable {
 
   public void draw(PGraphics3D canvas) {
     canvas.resetShader();
-
     this.internalCopy.disableStyle();
-
-    canvas.fill(0);
-    canvas.stroke(255);
-    canvas.strokeWeight(2);
     canvas.shape(this.internalCopy);
   }
 

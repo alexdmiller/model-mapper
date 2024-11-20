@@ -25,7 +25,7 @@ public class ModelMapper {
   }
 
   private enum CalibrateMode {
-    MODEL, PROJECTION
+    SELECT_POINT, PROJECTION
   }
 
   private PApplet parent;
@@ -68,7 +68,7 @@ public class ModelMapper {
       this.modelCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
       this.projectionCanvas = (PGraphics3D) parent.createGraphics(parent.width, parent.height, P3D);
       this.mode = Mode.RENDER;
-      this.calibrateMode = CalibrateMode.MODEL;
+      this.calibrateMode = CalibrateMode.SELECT_POINT;
       this.camera = new PeasyCam(parent, modelCanvas, 400);
 
       this.parent.registerMethod("draw", this);
@@ -206,10 +206,6 @@ public class ModelMapper {
     }
   }
 
-  /**
-   * Processing hooks
-   */
-
   public void drawDebugInfo() {
     parentGraphics.hint(DISABLE_DEPTH_TEST);
 
@@ -228,10 +224,12 @@ public class ModelMapper {
     parentGraphics.hint(ENABLE_DEPTH_TEST);
   }
 
-
+  /**
+   * Processing hooks
+   */
   public void draw() {
-    Model model = getCurrentModel();
-    Mapping mapping = getCurrentMapping();
+    Model currentModel = getCurrentModel();
+    Mapping currentMapping = getCurrentMapping();
 
     try {
       parent.resetShader();
@@ -242,7 +240,7 @@ public class ModelMapper {
         parent.noCursor();
         parent.background(0);
 
-        if (calibrateMode == CalibrateMode.MODEL) {
+        if (calibrateMode == CalibrateMode.SELECT_POINT) {
           parent.background(0);
 
           // Only turn peasycam on when in calibrate mode and in model space; otherwise use
@@ -253,7 +251,11 @@ public class ModelMapper {
           modelCanvas.clear();
           modelCanvas.scale(1, -1, 1);
 
-          model.draw(modelCanvas);
+          modelCanvas.fill(25);
+          modelCanvas.stroke(255);
+          modelCanvas.strokeWeight(2);
+
+          currentModel.draw(modelCanvas);
 
           modelCanvas.endDraw();
 
@@ -273,9 +275,9 @@ public class ModelMapper {
           parent.vertex(0, parent.height, 0, 1);
           parent.endShape();
 
-          PVector closestPoint = model.getClosestPointTo(mouse, modelCanvas);
+          PVector closestPoint = currentModel.getClosestPointTo(mouse, modelCanvas);
 
-          for (PVector modelPoint : mapping.getMappedPoints()) {
+          for (PVector modelPoint : currentMapping.getMappedPoints()) {
             PVector projectedPoint = worldToScreen(modelPoint, modelCanvas);
             parent.noStroke();
             parent.fill(255, 200);
@@ -303,25 +305,40 @@ public class ModelMapper {
               uiModel.height / 2f);
         } else if (calibrateMode == CalibrateMode.PROJECTION) {
           camera.setActive(false);
-          if (mapping.isReady()) {
-            mapping.begin(projectionCanvas);
-            model.draw(projectionCanvas);
-            mapping.end(projectionCanvas);
-          } else {
-            parent.image(
-                uiNoCalibration,
-                parent.width / 2f - uiNoCalibration.width / 4f,
-                parent.height / 2f - uiNoCalibration.height / 4f,
-                uiNoCalibration.width / 2f,
-                uiNoCalibration.height / 2f);
-//            parent.textMode(CENTER);
-//            parent.text("No calibration", (float) parent.width / 2, (float) parent.height / 2);
+
+          for (Model model : models) {
+            for (Mapping mapping: model.getMappings()) {
+              if (mapping.isReady()) {
+                mapping.begin(projectionCanvas);
+
+                if (model == currentModel && mapping == currentMapping) {
+                  projectionCanvas.fill(25);
+                  projectionCanvas.stroke(255);
+                  projectionCanvas.strokeWeight(2);
+                } else {
+                  projectionCanvas.fill(0);
+                  projectionCanvas.stroke(50);
+                  projectionCanvas.strokeWeight(2);
+                }
+
+                model.draw(projectionCanvas);
+                mapping.end(projectionCanvas);
+              } else {
+//                parent.image(
+//                    uiNoCalibration,
+//                    parent.width / 2f - uiNoCalibration.width / 4f,
+//                    parent.height / 2f - uiNoCalibration.height / 4f,
+//                    uiNoCalibration.width / 2f,
+//                    uiNoCalibration.height / 2f);
+              }
+            }
           }
+
 
           parent.image(projectionCanvas, 0, 0);
 
-          for (PVector modelPoint : mapping.getMappedPoints()) {
-            PVector projectedPoint = mapping.get(modelPoint);
+          for (PVector modelPoint : currentMapping.getMappedPoints()) {
+            PVector projectedPoint = currentMapping.get(modelPoint);
             parent.strokeWeight(5);
 
             parent.noStroke();
@@ -336,9 +353,9 @@ public class ModelMapper {
           }
 
 
-          PVector closestPoint = mapping.getClosestMappedPointTo(mouse);
+          PVector closestPoint = currentMapping.getClosestMappedPointTo(mouse);
           if (closestPoint != null) {
-            PVector projectedPoint = mapping.get(closestPoint);
+            PVector projectedPoint = currentMapping.get(closestPoint);
             parent.stroke(255);
             parent.strokeWeight(2);
             parent.noFill();
@@ -413,7 +430,7 @@ public class ModelMapper {
       return;
     }
 
-    if (calibrateMode == CalibrateMode.MODEL) {
+    if (calibrateMode == CalibrateMode.SELECT_POINT) {
       if (event.getAction() == MouseEvent.CLICK) {
         selectedVertex = model.getClosestPointTo(mouse, modelCanvas);
       }
@@ -454,9 +471,9 @@ public class ModelMapper {
         mode = (mode == Mode.CALIBRATE) ? Mode.RENDER : Mode.CALIBRATE;
         resetCamera();
       } else if (event.getKeyCode() == 9) { // tab
-        calibrateMode = (calibrateMode == CalibrateMode.MODEL)
+        calibrateMode = (calibrateMode == CalibrateMode.SELECT_POINT)
             ? CalibrateMode.PROJECTION
-            : CalibrateMode.MODEL;
+            : CalibrateMode.SELECT_POINT;
         resetCamera();
       } else if (event.getKeyCode() == 37) { // left
         currentModelIndex = (currentModelIndex + 1) % models.size();
